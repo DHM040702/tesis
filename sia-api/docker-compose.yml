@@ -1,0 +1,30 @@
+services:
+  db:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_DATABASE: "sia_unasam"
+      MYSQL_ROOT_PASSWORD: "root"
+      MYSQL_PASSWORD: "root"
+      MYSQL_USER: "root"
+    ports: ["3306:3306"]
+    command: ["--default-authentication-plugin=mysql_native_password","--sql-mode="]
+    volumes:
+      - dbdata:/var/lib/mysql
+
+  api:
+    build: .
+    command: bash -c "uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    ports: ["8000:8000"]
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: sia_unasam
+      DB_USER: root
+      DB_PASS: root
+      JWT_SECRET: supersecreto
+      JWT_EXPIRES_MIN: 720
+    depends_on: [db]
+
+volumes:
+  dbdata:
