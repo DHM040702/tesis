@@ -530,3 +530,20 @@ async def crear_usuario(payload: UsuarioCreate, db: AsyncSession = Depends(get_s
             "nombres": out.nombres
         }
     }}
+
+
+"""
+alertas;
+asistencias;
+bitacora_auditoria;
+calificaciones;
+cursos;
+docentes;
+matriculas;
+permisos;
+puntajes_riesgo;
+roles_permisos;
+sesiones_tutoria;
+trabajos_sincronizacion;
+tutores;
+"""

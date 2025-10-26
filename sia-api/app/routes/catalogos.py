@@ -12,7 +12,7 @@ router = APIRouter(prefix="/catalogos", tags=["catalogos"])
 
 @router.get("/periodos", response_model=ApiResponse, dependencies=[Depends(require_roles("admin","autoridad","tutor","docente"))])
 async def periodos(db: AsyncSession = Depends(get_session)):
-    res = await db.execute(text("SELECT id_periodo, nombre, fecha_inicio, fecha_fin FROM periodos_academicos ORDER BY id_periodo DESC"))
+    res = await db.execute(text("SELECT * FROM periodos_academicos ORDER BY id_periodo DESC"))
     return {"ok": True, "data": [dict(r._mapping) for r in res.fetchall()]}
 
 @router.get("/programas", response_model=ApiResponse, dependencies=[Depends(require_roles("admin","autoridad","tutor","docente"))])
@@ -27,5 +27,5 @@ async def facultades(db: AsyncSession = Depends(get_session)):
 
 @router.get("/niveles-riesgo", response_model=ApiResponse, dependencies=[Depends(require_roles("admin","autoridad","tutor","docente"))])
 async def niveles_riesgo(db: AsyncSession = Depends(get_session)):
-    res = await db.execute(text("SELECT id_nivel_riesgo, nombre, color, puntaje_min, puntaje_max FROM niveles_riesgo ORDER BY puntaje_min ASC"))
+    res = await db.execute(text("SELECT * FROM niveles_riesgo ORDER BY id_nivel_riesgo ASC"))
     return {"ok": True, "data": [dict(r._mapping) for r in res.fetchall()]}

@@ -11,19 +11,22 @@ from ..schemas import ApiResponse
 router = APIRouter(prefix="/academico", tags=["evidencia_academica"])
 
 
-# =========================
-# 1️⃣ MATRÍCULAS
-# =========================
-@router.get("/{id_estudiante}/matriculas", response_model=ApiResponse,
-             dependencies=[Depends(require_roles("admin","autoridad","tutor"))])
+# ============================================================
+# MATRÍCULAS — cursos matriculados por estudiante/periodo
+# ============================================================
+@router.get(
+    "/{id_estudiante}/matriculas",
+    response_model=ApiResponse,
+    dependencies=[Depends(require_roles("admin", "autoridad", "tutor"))],
+)
 async def matriculas_estudiante(
     id_estudiante: int,
-    id_periodo: int = Query(..., ge=1),
-    db: AsyncSession = Depends(get_session)
+    id_periodo: int = Query(..., ge=1, description="ID del periodo académico"),
+    db: AsyncSession = Depends(get_session),
 ):
     """
     Retorna las asignaturas matriculadas por un estudiante en un periodo determinado.
-    Muestra: curso, créditos, docente, asistencia registrada, estado (regular, retirado, etc.)
+    Incluye: curso, créditos, docente, estado y fecha de matrícula.
     """
     q = text("""
         SELECT
@@ -31,69 +34,89 @@ async def matriculas_estudiante(
             c.nombre AS curso,
             c.creditos,
             d.id_docente,
-            CONCAT_WS(' ', p.apellido_paterno, p.apellido_materno, p.nombres) AS docente,
-            m.estado_matricula,
+            CONCAT_WS(' ', pd.apellido_paterno, pd.apellido_materno, pd.nombres) AS docente,
+            em.nombre AS estado_matricula,
             m.fecha_matricula
         FROM matriculas m
-        JOIN cursos c       ON c.id_curso = m.id_curso
-        JOIN docentes d     ON d.id_docente = m.id_docente
-        JOIN personas p     ON p.id_persona = d.id_persona
+        JOIN cursos c               ON c.id_curso = m.id_curso
+        LEFT JOIN docentes d        ON d.id_docente = m.id_docente
+        LEFT JOIN personas pd       ON pd.id_persona = d.id_persona
+        JOIN estados_matricula em   ON em.id_estado_matricula = m.id_estado_matricula
         WHERE m.id_estudiante = :est AND m.id_periodo = :per
         ORDER BY c.nombre ASC
     """)
+
     res = await db.execute(q, {"est": id_estudiante, "per": id_periodo})
-    data = [dict(r._mapping) for r in res.fetchall()]
-    if not data:
-        raise HTTPException(status_code=404, detail="No se encontraron matrículas para el periodo indicado")
-    return {"ok": True, "data": data}
+    rows = res.mappings().all()
+
+    if not rows:
+        raise HTTPException(
+            status_code=404,
+            detail="No se encontraron matrículas para el periodo indicado",
+        )
+
+    return {"ok": True, "data": [dict(r) for r in rows]}
 
 
-# =========================
-# 2️⃣ ASISTENCIAS
-# =========================
-@router.get("/{id_estudiante}/asistencias", response_model=ApiResponse,
-             dependencies=[Depends(require_roles("admin","autoridad","tutor"))])
+# ============================================================
+# ASISTENCIAS — resumen de asistencia por curso (AGREGADO)
+# ============================================================
+@router.get(
+    "/{id_estudiante}/asistencias",
+    response_model=ApiResponse,
+    dependencies=[Depends(require_roles("admin", "autoridad", "tutor"))],
+)
 async def asistencias_estudiante(
     id_estudiante: int,
-    id_periodo: int = Query(..., ge=1),
-    db: AsyncSession = Depends(get_session)
+    id_periodo: int = Query(..., ge=1, description="ID del periodo académico"),
+    db: AsyncSession = Depends(get_session),
 ):
     """
-    Devuelve el resumen de asistencias del estudiante por curso y porcentaje.
-    Se espera que la tabla `asistencias` tenga (id_estudiante, id_curso, asistencias, faltas, total_sesiones).
+    Devuelve el resumen de asistencias del estudiante por curso con porcentaje.
+    Calcula a partir de la tabla de detalle `asistencias` (presente/falta por sesión).
     """
     q = text("""
         SELECT
             c.nombre AS curso,
-            a.asistencias,
-            a.faltas,
-            a.total_sesiones,
-            ROUND((a.asistencias / NULLIF(a.total_sesiones,0)) * 100, 2) AS porcentaje_asistencia
+            SUM(CASE WHEN a.presente = 1 THEN 1 ELSE 0 END) AS asistencias,
+            SUM(CASE WHEN a.presente = 0 THEN 1 ELSE 0 END) AS faltas,
+            COUNT(*) AS total_sesiones,
+            ROUND(
+                (SUM(CASE WHEN a.presente = 1 THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0)) * 100
+            , 2) AS porcentaje_asistencia
         FROM asistencias a
-        JOIN cursos c ON c.id_curso = a.id_curso
-        WHERE a.id_estudiante = :est AND a.id_periodo = :per
+        JOIN matriculas m ON m.id_matricula = a.id_matricula
+        JOIN cursos c     ON c.id_curso = m.id_curso
+        WHERE m.id_estudiante = :est
+          AND m.id_periodo    = :per
+        GROUP BY c.id_curso, c.nombre
         ORDER BY c.nombre ASC
     """)
     res = await db.execute(q, {"est": id_estudiante, "per": id_periodo})
-    data = [dict(r._mapping) for r in res.fetchall()]
-    if not data:
+    rows = res.mappings().all()
+
+    if not rows:
         raise HTTPException(status_code=404, detail="No se encontraron registros de asistencia")
-    return {"ok": True, "data": data}
+
+    return {"ok": True, "data": [dict(r) for r in rows]}
 
 
-# =========================
-# 3️⃣ CALIFICACIONES
-# =========================
-@router.get("/{id_estudiante}/calificaciones", response_model=ApiResponse,
-             dependencies=[Depends(require_roles("admin","autoridad","tutor"))])
+# ============================================================
+# CALIFICACIONES — notas finales y promedio
+# ============================================================
+@router.get(
+    "/{id_estudiante}/calificaciones",
+    response_model=ApiResponse,
+    dependencies=[Depends(require_roles("admin", "autoridad", "tutor"))],
+)
 async def calificaciones_estudiante(
     id_estudiante: int,
-    id_periodo: int = Query(..., ge=1),
-    db: AsyncSession = Depends(get_session)
+    id_periodo: int = Query(..., ge=1, description="ID del periodo académico"),
+    db: AsyncSession = Depends(get_session),
 ):
     """
-    Devuelve las calificaciones del estudiante en cada curso y el promedio general.
-    La tabla `calificaciones` contiene (id_estudiante, id_curso, nota_final, id_periodo).
+    Devuelve las calificaciones del estudiante en cada curso del periodo.
+    Usa calificaciones.id_matricula -> matriculas -> cursos. Calcula promedio general.
     """
     q = text("""
         SELECT
@@ -101,29 +124,31 @@ async def calificaciones_estudiante(
             c.creditos,
             cal.nota_final,
             CASE
-              WHEN cal.nota_final >= 13 THEN 'Aprobado'
-              WHEN cal.nota_final IS NULL THEN 'Pendiente'
-              ELSE 'Desaprobado'
+                WHEN cal.nota_final >= 13 THEN 'Aprobado'
+                WHEN cal.nota_final IS NULL THEN 'Pendiente'
+                ELSE 'Desaprobado'
             END AS estado
         FROM calificaciones cal
-        JOIN cursos c ON c.id_curso = cal.id_curso
-        WHERE cal.id_estudiante = :est AND cal.id_periodo = :per
+        JOIN matriculas m ON m.id_matricula = cal.id_matricula
+        JOIN cursos c ON c.id_curso = m.id_curso
+        WHERE m.id_estudiante = :est AND m.id_periodo = :per
         ORDER BY c.nombre ASC
     """)
     res = await db.execute(q, {"est": id_estudiante, "per": id_periodo})
-    rows = res.fetchall()
-    if not rows:
-        raise HTTPException(status_code=404, detail="No se encontraron calificaciones para este periodo")
+    rows = res.mappings().all()
 
-    # Calcular promedio general ponderado
-    notas_validas = [r.nota_final for r in rows if r.nota_final is not None]
+    if not rows:
+        raise HTTPException(
+            status_code=404, detail="No se encontraron calificaciones para este periodo"
+        )
+
+    notas_validas = [r["nota_final"] for r in rows if r["nota_final"] is not None]
     promedio = round(sum(notas_validas) / len(notas_validas), 2) if notas_validas else None
 
-    data = [dict(r._mapping) for r in rows]
     return {
         "ok": True,
         "data": {
-            "detalle": data,
-            "promedio_general": promedio
-        }
+            "detalle": [dict(r) for r in rows],
+            "promedio_general": promedio,
+        },
     }
