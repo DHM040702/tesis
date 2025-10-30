@@ -24,4 +24,5 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+*.zip
 next-env.d.ts
