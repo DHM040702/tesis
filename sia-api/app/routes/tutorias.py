@@ -1,6 +1,6 @@
 # app/routers/tutorias.py
 from __future__ import annotations
-from datetime import date
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -21,10 +21,12 @@ router = APIRouter(prefix="/tutorias", tags=["tutorias"])
 class TutoriaIn(BaseModel):
     id_estudiante: int = Field(..., ge=1)
     id_periodo: int = Field(..., ge=1)
-    fecha: date = Field(default_factory=date.today)
+    fecha_hora: Optional[datetime] = None
+    id_modalidad: int = Field(..., ge=1)
     tema: str = Field(..., min_length=3, max_length=150)
     observaciones: Optional[str] = Field(None, max_length=300)
     seguimiento: Optional[str] = Field(None, max_length=300)
+    id_tutor_override: Optional[int] = None
 
 
 # =========================
@@ -161,7 +163,7 @@ async def listar_tutorias(
             p.dni,
             CONCAT_WS(' ', p.apellido_paterno, p.apellido_materno, ',', p.nombres) AS estudiante,
             pa.nombre      AS periodo,
-            t.fecha,
+            t.fecha_hora,
             t.tema,
             t.observaciones,
             t.seguimiento,
@@ -188,13 +190,13 @@ async def listar_tutorias(
         params["per"] = id_periodo
 
     if auth["is_adminlike"]:
-        sql = base_sql + where_extra + " ORDER BY t.fecha DESC, t.id_tutoria DESC"
+        sql = base_sql + where_extra + " ORDER BY t.fecha_hora DESC, t.id_tutoria DESC"
     else:
         # Restringir a las tutorías del propio tutor
-        sql = base_sql + " AND t.id_tutor = :tutor" + where_extra + " ORDER BY t.fecha DESC, t.id_tutoria DESC"
+        sql = base_sql + " AND t.id_tutor = :tutor" + where_extra + " ORDER BY t.fecha_hora DESC, t.id_tutoria DESC"
         params["tutor"] = auth["id_tutor_tabla"]
 
-    res = await db.execute(text(sql), params)
+    res = await db.execute(text(sql), params)   
     data = [dict(r._mapping) for r in res.fetchall()]
     return {"ok": True, "data": data}
 
@@ -202,23 +204,13 @@ async def listar_tutorias(
 # =========================
 # 3) Registrar tutoría
 # =========================
-@router.post(
-    "/",
-    response_model=ApiResponse,
-    status_code=status.HTTP_201_CREATED
-)
+@router.post("/", response_model=ApiResponse, status_code=status.HTTP_201_CREATED)
 async def registrar_tutoria(
     payload: TutoriaIn,
     db: AsyncSession = Depends(get_session),
-    user=Depends(get_current_user)
+    user = Depends(get_current_user)
 ):
-    """
-    Registra una nueva sesión de tutoría:
-      - Verifica existencia de estudiante y periodo.
-      - Si no es admin/autoridad, exige que el estudiante esté ASIGNADO al tutor en ese periodo (asignaciones_tutoria).
-      - Inserta en 'tutorias' usando id_tutor = tutores.id_tutor del usuario.
-    """
-    auth = await _autoriza_gestion_tutorias(db, user)
+    auth = await _autoriza_gestion_tutorias(db, user)  # is_adminlike, id_tutor_tabla
 
     # Validaciones básicas
     chk_est = (await db.execute(
@@ -235,15 +227,29 @@ async def registrar_tutoria(
     if not chk_per:
         raise HTTPException(status_code=404, detail="Periodo no encontrado")
 
-    # Si no es admin/autoridad, verificar asignación tutor–estudiante–periodo
-    if not auth["is_adminlike"]:
+    # Determinar id_tutor que se grabará
+    if auth["is_adminlike"]:
+        if payload.id_tutor_override is not None:
+            id_tutor_final = payload.id_tutor_override
+        else:
+            # intentar mapear al propio usuario si también es tutor
+            id_tutor_final = await _get_tutor_id_tabla(db, user["id_usuario"])
+            if id_tutor_final is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Usuario admin/autoridad no está en 'tutores'. Envía 'id_tutor_override' o crea el registro en 'tutores'."
+                )
+        # adminlike no obliga a validar asignación tutor–estudiante–periodo (depende de tu política)
+    else:
+        # debe ser tutor: usar su id_tutor y validar asignación
+        id_tutor_final = auth["id_tutor_tabla"]
         asig = (await db.execute(text("""
             SELECT 1 
             FROM asignaciones_tutoria 
             WHERE id_tutor=:tutor AND id_estudiante=:est AND id_periodo=:per
             LIMIT 1
         """), {
-            "tutor": auth["id_tutor_tabla"],
+            "tutor": id_tutor_final,
             "est": payload.id_estudiante,
             "per": payload.id_periodo
         })).fetchone()
@@ -253,37 +259,53 @@ async def registrar_tutoria(
                 detail="El estudiante no está asignado a este tutor en el periodo indicado"
             )
 
-    # Insertar sesión de tutoría
+    # Construir INSERT (dejando que la BD ponga fecha_hora por defecto si no se envía)
     try:
-        await db.execute(text("""
-            INSERT INTO tutorias
-                (id_tutor, id_estudiante, id_periodo, fecha, tema, observaciones, seguimiento)
-            VALUES
-                (:tutor, :est, :per, :fec, :tem, :obs, :seg)
-        """), {
-            "tutor": auth["id_tutor_tabla"] if not auth["is_adminlike"] else (await _get_tutor_id_tabla(db, user["id_usuario"])) or None,
-            # Si es admin/autoridad y no tiene fila en 'tutores', puedes:
-            #  - forzar que envíe id_tutor explícito (otro diseño), o
-            #  - requerir que también sea tutor; aquí intentamos obtener su id_tutor, podría ser NULL si no existe.
-            "est": payload.id_estudiante,
-            "per": payload.id_periodo,
-            "fec": payload.fecha,
-            "tem": payload.tema,
-            "obs": payload.observaciones,
-            "seg": payload.seguimiento
-        })
+        if payload.fecha_hora is None:
+            # sin fecha_hora -> usa DEFAULT de la BD
+            await db.execute(text("""
+                INSERT INTO tutorias
+                    (id_tutor, id_estudiante, id_periodo, fecha_hora, id_modalidad_tutoria, tema, observaciones, seguimiento)
+                VALUES
+                    (:tutor, :est, :per, curdate(),:mod , :tem, :obs, :seg)
+            """), {
+                "tutor": id_tutor_final,
+                "est": payload.id_estudiante,
+                "per": payload.id_periodo,
+                "mod": payload.id_modalidad,
+                "tem": payload.tema,
+                "obs": payload.observaciones,
+                "seg": payload.seguimiento
+            })
+        else:
+            # con fecha_hora proporcionada
+            await db.execute(text("""
+                INSERT INTO tutorias
+                    (id_tutor, id_estudiante, id_periodo, fecha_hora,id_modalidad_tutoria, tema, observaciones, seguimiento)
+                VALUES
+                    (:tutor, :est, :per, :fec,:mod, :tem, :obs, :seg)
+            """), {
+                "tutor": id_tutor_final,
+                "est": payload.id_estudiante,
+                "per": payload.id_periodo,
+                "mod": payload.id_modalidad,
+                "fec": payload.fecha_hora,
+                "tem": payload.tema,
+                "obs": payload.observaciones,
+                "seg": payload.seguimiento
+            })
         await db.commit()
     except Exception as ex:
         await db.rollback()
         raise HTTPException(status_code=400, detail=f"No se pudo registrar la tutoría: {ex}")
 
-    # Retornar la última sesión registrada para ese (tutor, estudiante, periodo)
-    q = text("""
+    # Devolver la última insertada (requiere PK autoincremental id_tutoria)
+    row = (await db.execute(text("""
         SELECT 
             t.id_tutoria,
             t.id_estudiante,
             t.id_periodo,
-            t.fecha,
+            t.fecha_hora,
             t.tema,
             t.observaciones,
             t.seguimiento
@@ -291,6 +313,6 @@ async def registrar_tutoria(
         WHERE t.id_estudiante=:est AND t.id_periodo=:per
         ORDER BY t.id_tutoria DESC
         LIMIT 1
-    """)
-    row = (await db.execute(q, {"est": payload.id_estudiante, "per": payload.id_periodo})).fetchone()
+    """), {"est": payload.id_estudiante, "per": payload.id_periodo})).fetchone()
+
     return {"ok": True, "message": "Tutoría registrada", "data": dict(row._mapping) if row else None}

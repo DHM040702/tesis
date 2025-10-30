@@ -195,7 +195,7 @@ async def logout_all(user=Depends(get_current_user), db: AsyncSession = Depends(
 # Utils locales
 # ==========================
 from datetime import datetime, timezone
-def now() -> datetime:
+def now() -> datetime:                                                          
     return datetime.now(timezone.utc)
 def datetime_from_epoch(ts: int) -> datetime:
     return datetime.fromtimestamp(ts, tz=timezone.utc)
