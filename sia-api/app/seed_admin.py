@@ -1,12 +1,13 @@
 # app/seed_admin.py
 import asyncio, os
-from passlib.context import CryptContext
+# from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from dotenv import load_dotenv
 from .db import SessionLocal
+from .security import hash_password
 
-pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
 load_dotenv()
 
 ADMIN_CORREO = os.getenv("ADMIN_CORREO","admin@unasam.edu.pe")
@@ -46,7 +47,8 @@ async def main():
         res = await s.execute(text("SELECT id_usuario FROM usuarios WHERE correo=:c"), {"c": ADMIN_CORREO})
         row = res.fetchone()
         if not row:
-            hashed = pwd.hash(ADMIN_PASS)
+            hashed = hash_password(ADMIN_PASS)
+            # hashed = pwd.hash(ADMIN_PASS)
             await s.execute(text("""
                 INSERT INTO usuarios(id_persona, correo, contrasenia_hash, id_estado_usuario)
                 VALUES (:pid, :c, :h, 1)

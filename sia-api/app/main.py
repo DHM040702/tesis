@@ -6,11 +6,26 @@ from fastapi.middleware.cors import CORSMiddleware
 
 DEV_MODE = os.getenv("DEV_MODE", "false").lower() == "true"
 
+def _allowed_cors_origins() -> list[str]:
+    raw = os.getenv("CORS_ORIGINS", "")
+    if raw.strip():
+        return [origin.strip() for origin in raw.split(",") if origin.strip()]
+    return [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:4173",
+        "http://127.0.0.1:4173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
+    ]
+
+
+
 app = FastAPI(title="SIA-UNASAM API (FastAPI)", version="1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],  # Vite
+    allow_origins=_allowed_cors_origins(),  # Vite
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
