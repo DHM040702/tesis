@@ -1,3 +1,4 @@
+// @ts-ignore: allow importing CSS without a module declaration
 import "./styles.css";
 import React from "react";
 import ReactDOM from "react-dom/client";
