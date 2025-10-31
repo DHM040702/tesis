@@ -76,6 +76,10 @@ SQL_REVOKE_ALL_FOR_USER = text("""
 # ==========================
 @router.post("/login", response_model=TokenOut)
 async def login(payload: LoginIn, request: Request, db: AsyncSession = Depends(get_session)):
+    dump = payload.model_dump()
+    dump["correo"] = str(payload.correo)
+    print(f"[auth.login] URL destino: {request.url}")
+    print(f"[auth.login] Payload recibido: {dump}")
     # 1) buscar usuario
     row = (await db.execute(SQL_USER_BY_EMAIL, {"c": payload.correo})).fetchone()
     if not row:

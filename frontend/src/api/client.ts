@@ -1,7 +1,8 @@
 import dayjs from "dayjs";
 import { ApiLoginResponse, ApiResponse, ApiTutoriasResponse, ApiUser, RiskSummaryItem, StudentItem } from "../types";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000/api";
+const RAW_API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000/api";
+const API_URL = RAW_API_URL.replace(/\/+$/, "");
 
 type Tokens = {
   accessToken: string | null;
@@ -19,26 +20,61 @@ class ApiClient {
     this.refreshToken = tokens.refreshToken;
   }
 
-  private async request<T>(path: string, init?: RequestInit): Promise<T> {
-    const headers: HeadersInit = {
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {})
-    };
-    if (this.accessToken) {
-      headers["Authorization"] = `Bearer ${this.accessToken}`;
+  private buildUrl(path: string): string {
+    if (!path.startsWith("/")) {
+      return `${API_URL}/${path}`;
     }
-    const response = await fetch(`${API_URL}${path}`, {
-      ...init,
-      headers
-    });
+    return `${API_URL}${path}`;
+  }
+
+  private async parseErrorResponse(response: Response, fallback = "Error al comunicarse con el servidor"): Promise<string> {
+    const text = await response.text();
+    if (!text) {
+      return fallback;
+    }
+    try {
+      const data = JSON.parse(text);
+      if (typeof data.detail === "string") {
+        return data.detail;
+      }
+      if (typeof data.message === "string") {
+        return data.message;
+      }
+    } catch {
+      // ignorar: no es JSON válido, usar texto plano
+    }
+    return text;
+  }
+
+  private async request<T>(path: string, init?: RequestInit): Promise<T> {
+    const targetUrl = this.buildUrl(path);
+    const headers = new Headers(init?.headers ?? {});
+    headers.set("Content-Type", "application/json");
+    if (this.accessToken) {
+      headers.set("Authorization", `Bearer ${this.accessToken}`);
+    }
+    let response: Response;
+    try {
+      response = await fetch(targetUrl, {
+        ...init,
+        headers
+      });
+    } catch {
+      throw new Error(
+        `No se pudo conectar con la API (${targetUrl}). Verifique la URL configurada y las reglas CORS.`
+      );
+    }
 
     if (response.status === 401 && this.refreshToken) {
       return this.handleUnauthorized<T>(path, init);
     }
 
     if (!response.ok) {
-      const text = await response.text();
-      throw new Error(text || "Error al comunicarse con el servidor");
+      const message = await this.parseErrorResponse(response);
+      throw new Error(message);
+    }
+    if (response.status === 204) {
+      return undefined as T;
     }
     return response.json();
   }
@@ -63,13 +99,22 @@ class ApiClient {
 
     this.isRefreshing = true;
     try {
-      const res = await fetch(`${API_URL}/auth/refresh`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refresh_token: this.refreshToken })
-      });
+      let res: Response;
+      const targetUrl = this.buildUrl("/auth/refresh");
+      try {
+        res = await fetch(targetUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh_token: this.refreshToken })
+        });
+      } catch {
+        throw new Error(
+          `No se pudo conectar con la API (${targetUrl}). Verifique la URL configurada y las reglas CORS.`
+        );
+      }
       if (!res.ok) {
-        throw new Error("No se pudo refrescar la sesión");
+        const message = await this.parseErrorResponse(res, "No se pudo refrescar la sesión");
+        throw new Error(message);
       }
       const tokens: ApiLoginResponse = await res.json();
       this.accessToken = tokens.access_token;
@@ -86,13 +131,26 @@ class ApiClient {
   }
 
   async login(payload: { correo: string; contrasenia: string }): Promise<ApiLoginResponse> {
-    const res = await fetch(`${API_URL}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+    let res: Response;
+    const targetUrl = this.buildUrl("/auth/login");
+    console.info("[frontend] POST", targetUrl, {
+      correo: payload.correo,
+      contrasenia: payload.contrasenia
     });
+    try {
+      res = await fetch(targetUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+        body: JSON.stringify({ correo: payload.correo, contrasenia: payload.contrasenia })
+      });
+    } catch {
+      throw new Error(
+        `No se pudo conectar con la API (${targetUrl}). Verifique la URL configurada y las reglas CORS.`
+      );
+    }
     if (!res.ok) {
-      throw new Error("Credenciales incorrectas");
+      const message = await this.parseErrorResponse(res, "Credenciales incorrectas");
+      throw new Error(message);
     }
     const data: ApiLoginResponse = await res.json();
     this.setTokens({ accessToken: data.access_token, refreshToken: data.refresh_token });
@@ -100,11 +158,23 @@ class ApiClient {
   }
 
   async logout(refreshToken: string) {
-    await fetch(`${API_URL}/auth/logout`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: refreshToken })
-    });
+    let res: Response;
+    const targetUrl = this.buildUrl("/auth/logout");
+    try {
+      res = await fetch(targetUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: refreshToken })
+      });
+    } catch {
+      throw new Error(
+        `No se pudo conectar con la API (${targetUrl}). Verifique la URL configurada y las reglas CORS.`
+      );
+    }
+    if (!res.ok) {
+      const message = await this.parseErrorResponse(res);
+      throw new Error(message);
+    }
   }
 
   async getMe(): Promise<ApiUser> {
@@ -129,64 +199,6 @@ class ApiClient {
       "/catalogos/periodos"
     );
     return res.data ?? [];
-  }
-
-  async getProgramas() {
-    const res = await this.request<ApiResponse<Array<{ id_programa: number; nombre: string }>>>(
-      "/catalogos/programas"
-    );
-    return res.data ?? [];
-  }
-
-  async getNivelesRiesgo() {
-    const res = await this.request<ApiResponse<Array<{ id_nivel_riesgo: number; nombre: string }>>>(
-      "/catalogos/niveles-riesgo"
-    );
-    return res.data ?? [];
-  }
-
-  async getStudents(filters: { programa?: number; periodo?: number; riesgo?: string }) {
-    const query = new URLSearchParams();
-    if (filters.programa) query.append("programa", String(filters.programa));
-    if (filters.periodo) query.append("periodo", String(filters.periodo));
-    if (filters.riesgo) query.append("riesgo", filters.riesgo);
-    const res = await this.request<ApiResponse<StudentItem[]>>(`/estudiantes/?${query.toString()}`);
-    return res.data ?? [];
-  }
-
-  async getTutorAssignments(id_periodo?: number) {
-    const query = id_periodo ? `?id_periodo=${id_periodo}` : "";
-    const res = await this.request<ApiResponse<StudentItem[]>>(`/tutorias/tutores/mis-estudiantes${query}`);
-    return res.data ?? [];
-  }
-
-  async getTutorias(filters: { id_estudiante?: number; id_periodo?: number }): Promise<ApiTutoriasResponse[]> {
-    const query = new URLSearchParams();
-    if (filters.id_estudiante) query.append("id_estudiante", String(filters.id_estudiante));
-    if (filters.id_periodo) query.append("id_periodo", String(filters.id_periodo));
-    const res = await this.request<ApiResponse<ApiTutoriasResponse[]>>(`/tutorias/?${query.toString()}`);
-    return res.data ?? [];
-  }
-
-  async createTutoria(payload: {
-    id_estudiante: number;
-    id_periodo: number;
-    fecha_hora?: string;
-    id_modalidad: number;
-    tema: string;
-    observaciones?: string;
-    seguimiento?: string;
-    id_tutor_override?: number;
-  }) {
-    const body = {
-      ...payload,
-      fecha_hora: payload.fecha_hora ? dayjs(payload.fecha_hora).toISOString() : null
-    };
-    const res = await this.request<ApiResponse<unknown>>("/tutorias/", {
-      method: "POST",
-      body: JSON.stringify(body)
-    });
-    return res;
   }
 }
 

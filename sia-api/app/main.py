@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 DEV_MODE = os.getenv("DEV_MODE", "false").lower() == "true"
 
+
 def _allowed_cors_origins() -> list[str]:
     raw = os.getenv("CORS_ORIGINS", "")
     if raw.strip():
@@ -20,12 +21,11 @@ def _allowed_cors_origins() -> list[str]:
     ]
 
 
-
 app = FastAPI(title="SIA-UNASAM API (FastAPI)", version="1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_allowed_cors_origins(),  # Vite
+    allow_origins=_allowed_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
