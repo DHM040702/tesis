@@ -43,4 +43,10 @@ async def resumen(id_periodo: int, id_programa: int | None = None, db: AsyncSess
         params["prog"] = id_programa
     sql += " ORDER BY pr.puntaje ASC, p.apellido_paterno ASC, p.apellido_materno ASC, p.nombres ASC"
     res = await db.execute(text(sql), params)
-    return {"ok": True, "data": [dict(r._mapping) for r in res.fetchall()]}
+    registros = [dict(r._mapping) for r in res.fetchall()]
+
+    for registro in registros:
+        if registro.get("puntaje") is not None:
+            registro["puntaje"] = float(registro["puntaje"])
+
+    return {"ok": True, "data": registros}

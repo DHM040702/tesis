@@ -192,6 +192,19 @@ function StatCard({ titulo, valor, descripcion, color = "#2563eb" }: { titulo: s
     </article>
   );
 }
+function formatPuntaje(puntaje: RiskSummaryItem["puntaje"]) {
+  if (puntaje === null || puntaje === undefined) {
+    return "N/A";
+  }
+
+  const valorNumerico = Number(puntaje);
+
+  if (Number.isFinite(valorNumerico)) {
+    return valorNumerico.toFixed(2);
+  }
+
+  return "N/A";
+}
 
 function RowResumen({ item }: { item: RiskSummaryItem }) {
   return (
