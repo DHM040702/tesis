@@ -30,10 +30,35 @@ export type RiskSummaryItem = {
   nombre_visible: string;
   id_programa: number;
   programa: string;
-  puntaje: number;
+  puntaje: number | string | null;
   nivel: string;
   factores_json: string | null;
   creado_en: string;
+};
+
+export type ProgramItem = {
+  id_programa: number;
+  nombre: string;
+};
+
+export type PeriodoItem = {
+  id_periodo: number;
+  nombre: string;
+};
+
+export type RiskLevelItem = {
+  id_nivel_riesgo: number;
+  nombre: string;
+  descripcion?: string | null;
+  color?: string | null;
+};
+
+export type TutorAssignmentItem = {
+  id_estudiante: number;
+  dni: string | null;
+  estudiante: string;
+  programa: string;
+  periodo: string;
 };
 
 export type StudentItem = {
@@ -45,7 +70,7 @@ export type StudentItem = {
   nombres?: string;
   programa?: string;
   periodo?: string;
-  puntaje?: number;
+  puntaje?: number | string | null;
   nivel?: string;
 };
 

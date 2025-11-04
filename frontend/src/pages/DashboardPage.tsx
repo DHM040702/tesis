@@ -212,7 +212,7 @@ function RowResumen({ item }: { item: RiskSummaryItem }) {
       <td>{item.dni}</td>
       <td>{item.nombre_visible}</td>
       <td>{item.programa}</td>
-      <td>{item.puntaje.toFixed(2)}</td>
+      <td>{formatPuntaje(item.puntaje)}</td>
       <td>
         <NivelBadge nivel={item.nivel} />
       </td>

@@ -1,5 +1,16 @@
 import dayjs from "dayjs";
-import { ApiLoginResponse, ApiResponse, ApiTutoriasResponse, ApiUser, RiskSummaryItem, StudentItem } from "../types";
+import {
+  ApiLoginResponse,
+  ApiResponse,
+  ApiTutoriasResponse,
+  ApiUser,
+  PeriodoItem,
+  ProgramItem,
+  RiskLevelItem,
+  RiskSummaryItem,
+  StudentItem,
+  TutorAssignmentItem
+} from "../types";
 
 const RAW_API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000/api";
 const API_URL = RAW_API_URL.replace(/\/+$/, "");
@@ -194,11 +205,79 @@ class ApiClient {
     return res.data ?? [];
   }
 
-  async getPeriodos() {
-    const res = await this.request<ApiResponse<Array<{ id_periodo: number; nombre: string }>>>(
-      "/catalogos/periodos"
+  async getPeriodos(): Promise<PeriodoItem[]> {
+    const res = await this.request<ApiResponse<PeriodoItem[]>>("/catalogos/periodos");
+    return res.data ?? [];
+  }
+
+  async getProgramas(): Promise<ProgramItem[]> {
+    const res = await this.request<ApiResponse<ProgramItem[]>>("/catalogos/programas");
+    return res.data ?? [];
+  }
+
+  async getNivelesRiesgo(): Promise<RiskLevelItem[]> {
+    const res = await this.request<ApiResponse<RiskLevelItem[]>>("/catalogos/niveles-riesgo");
+    return res.data ?? [];
+  }
+
+  async getStudents(params: { programa?: number; periodo?: number; riesgo?: string } = {}): Promise<StudentItem[]> {
+    const query = new URLSearchParams();
+    if (params.programa) {
+      query.append("programa", String(params.programa));
+    }
+    if (params.periodo) {
+      query.append("periodo", String(params.periodo));
+    }
+    if (params.riesgo) {
+      query.append("riesgo", params.riesgo);
+    }
+    const search = query.toString();
+    const res = await this.request<ApiResponse<StudentItem[]>>(
+      search ? `/estudiantes/?${search}` : "/estudiantes/"
     );
     return res.data ?? [];
+  }
+
+  async getTutorAssignments(id_periodo?: number): Promise<TutorAssignmentItem[]> {
+    const query = new URLSearchParams();
+    if (id_periodo) {
+      query.append("id_periodo", String(id_periodo));
+    }
+    const search = query.toString();
+    const res = await this.request<ApiResponse<TutorAssignmentItem[]>>(
+      search ? `/tutorias/tutores/mis-estudiantes?${search}` : "/tutorias/tutores/mis-estudiantes"
+    );
+    return res.data ?? [];
+  }
+    async getTutorias(params: { id_estudiante?: number; id_periodo?: number }): Promise<ApiTutoriasResponse[]> {
+    const query = new URLSearchParams();
+    if (params.id_estudiante) {
+      query.append("id_estudiante", String(params.id_estudiante));
+    }
+    if (params.id_periodo) {
+      query.append("id_periodo", String(params.id_periodo));
+    }
+    const search = query.toString();
+    const res = await this.request<ApiResponse<ApiTutoriasResponse[]>>(
+      search ? `/tutorias/?${search}` : "/tutorias/"
+    );
+    return res.data ?? [];
+  }
+
+  async createTutoria(payload: {
+    id_estudiante: number;
+    id_periodo: number;
+    id_modalidad: number;
+    tema: string;
+    fecha_hora?: string;
+    observaciones?: string;
+    seguimiento?: string;
+    id_tutor_override?: number;
+  }): Promise<void> {
+    await this.request<ApiResponse<unknown>>("/tutorias/", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
   }
 }
 

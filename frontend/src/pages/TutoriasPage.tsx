@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "../api/client";
-import { ApiTutoriasResponse, StudentItem } from "../types";
+import { ApiTutoriasResponse, StudentItem, TutorAssignmentItem } from "../types";
 
 const opcionesModalidad = [
   { value: 1, label: "Presencial" },
@@ -196,11 +196,26 @@ export function TutoriasPage() {
   );
 }
 
-function formatearNombreEstudiante(estudiante: StudentItem) {
-  const partes = [estudiante.apellido_paterno, estudiante.apellido_materno, estudiante.nombres]
-    .filter(Boolean)
-    .join(" ");
-  return `${estudiante.dni ?? ""} · ${partes}`;
+function formatearNombreEstudiante(estudiante: StudentItem | TutorAssignmentItem) {
+  if ("estudiante" in estudiante && estudiante.estudiante) {
+    return estudiante.estudiante;
+  }
+  if (
+    "apellido_paterno" in estudiante ||
+    "apellido_materno" in estudiante ||
+    "nombres" in estudiante
+  ) {
+    const partes = [
+      "apellido_paterno" in estudiante ? estudiante.apellido_paterno : undefined,
+      "apellido_materno" in estudiante ? estudiante.apellido_materno : undefined,
+      "nombres" in estudiante ? estudiante.nombres : undefined
+    ]
+      .filter(Boolean)
+      .join(" ");
+    const prefijo = estudiante.dni ? `${estudiante.dni} · ` : "";
+    return partes ? `${prefijo}${partes}` : estudiante.dni ?? "Sin nombre";
+  }
+  return estudiante.dni ?? "Sin nombre";
 }
 
 function FilaTutoria({ tutoria }: { tutoria: ApiTutoriasResponse }) {

@@ -93,7 +93,7 @@ export function StudentsPage() {
                   <td>{est.dni ?? "-"}</td>
                   <td>{`${est.apellido_paterno ?? ""} ${est.apellido_materno ?? ""}, ${est.nombres ?? ""}`}</td>
                   <td>{est.programa ?? "-"}</td>
-                  <td>{est.puntaje?.toFixed(2) ?? "-"}</td>
+                  <td>{renderPuntaje(est.puntaje)}</td>
                   <td>
                     <NivelEtiqueta nivel={est.nivel ?? "Sin dato"} />
                   </td>
@@ -110,6 +110,17 @@ export function StudentsPage() {
       </section>
     </div>
   );
+}
+
+function renderPuntaje(puntaje: StudentItem["puntaje"]) {
+  if (puntaje === null || puntaje === undefined) {
+    return "-";
+  }
+  const valor = Number(puntaje);
+  if (Number.isFinite(valor)) {
+    return valor.toFixed(2);
+  }
+  return String(puntaje);
 }
 
 function NivelEtiqueta({ nivel }: { nivel: string }) {
