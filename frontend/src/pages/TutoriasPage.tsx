@@ -84,7 +84,15 @@ export function TutoriasPage() {
         seguimiento: values.seguimiento || undefined
       });
       setMensaje("Tutoría registrada correctamente");
-      reset({ id_modalidad: 1, tema: "", observaciones: "", seguimiento: "", fecha_hora: "", id_estudiante: undefined, id_periodo: values.id_periodo });
+      reset({
+        id_modalidad: 1,
+        tema: "",
+        observaciones: "",
+        seguimiento: "",
+        fecha_hora: "",
+        id_estudiante: undefined,
+        id_periodo: values.id_periodo
+      });
       queryClient.invalidateQueries({ queryKey: ["tutorias"] });
     } catch (err) {
       setError((err as Error).message);
@@ -94,45 +102,61 @@ export function TutoriasPage() {
   });
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px", alignItems: "start" }}>
-      <section style={panelStyle}>
-        <header>
-          <h1 style={{ margin: 0 }}>Registro de tutorías</h1>
-          <p style={{ color: "#6b7280" }}>
-            Complete el formulario para registrar la atención brindada al estudiante.
-          </p>
-        </header>
-        <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          <div style={{ display: "grid", gap: "12px" }}>
-            <label style={labelStyle}>
-              <span>Periodo académico</span>
-              <select {...register("id_periodo", { valueAsNumber: true, required: true })} style={selectStyle}>
+
+    <div className="page">
+      <header className="page-header">
+        <h1 className="page-title">Gestión de tutorías</h1>
+        <p className="page-description">
+          Coordine y documente las sesiones realizadas con los estudiantes asignados a su cuidado.
+        </p>
+      </header>
+
+      <div className="page-grid">
+        <section className="surface-card">
+          <header className="surface-header">
+            <div>
+              <h2 className="section-title">Registro de tutorías</h2>
+              <p className="section-subtitle">Complete el formulario para registrar la atención brindada al estudiante.</p>
+            </div>
+          </header>
+          <form onSubmit={onSubmit} className="form-grid form-grid--two">
+            <label className="form-field">
+              <span className="form-field__label">Periodo académico</span>
+              <select
+                {...register("id_periodo", { valueAsNumber: true, required: true })}
+                className="select"
+              >
                 <option value="">Seleccione un periodo</option>
-                {periodos?.map((periodo) => (
+                {periodos?.map((periodo: { id_periodo: number; nombre: string }) => (
                   <option key={periodo.id_periodo} value={periodo.id_periodo}>
                     {periodo.nombre}
                   </option>
                 ))}
               </select>
             </label>
-            <label style={labelStyle}>
-              <span>Estudiante asignado</span>
-              <select {...register("id_estudiante", { valueAsNumber: true, required: true })} style={selectStyle}>
+
+            <label className="form-field">
+              <span className="form-field__label">Estudiante asignado</span>
+              <select
+                {...register("id_estudiante", { valueAsNumber: true, required: true })}
+                className="select"
+              >
                 <option value="">Seleccione un estudiante</option>
-                {asignados?.map((est) => (
+                {asignados?.map((est: StudentItem & { estudiante?: string; periodo?: string }) => (
                   <option key={est.id_estudiante} value={est.id_estudiante}>
                     {formatearNombreEstudiante(est)}
                   </option>
                 ))}
               </select>
             </label>
-            <label style={labelStyle}>
-              <span>Fecha y hora</span>
-              <input type="datetime-local" {...register("fecha_hora")} style={inputStyle} />
+            
+            <label className="form-field">
+              <span className="form-field__label">Fecha y hora</span>
+              <input type="datetime-local" {...register("fecha_hora")} className="input" />
             </label>
-            <label style={labelStyle}>
-              <span>Modalidad</span>
-              <select {...register("id_modalidad", { valueAsNumber: true, required: true })} style={selectStyle}>
+            <label className="form-field">
+              <span className="form-field__label">Modalidad</span>
+              <select {...register("id_modalidad", { valueAsNumber: true, required: true })} className="select">
                 {opcionesModalidad.map((opcion) => (
                   <option key={opcion.value} value={opcion.value}>
                     {opcion.label}
@@ -140,58 +164,59 @@ export function TutoriasPage() {
                 ))}
               </select>
             </label>
-            <label style={labelStyle}>
-              <span>Tema tratado</span>
-              <input type="text" {...register("tema", { required: true, minLength: 3 })} style={inputStyle} />
+            <label className="form-field form-field--full">
+              <span className="form-field__label">Tema tratado</span>
+              <input type="text" {...register("tema", { required: true, minLength: 3 })} className="input" />
             </label>
-            <label style={labelStyle}>
-              <span>Observaciones</span>
-              <textarea {...register("observaciones")} style={textareaStyle} rows={3} />
+            <label className="form-field form-field--full">
+              <span className="form-field__label">Observaciones</span>
+              <textarea {...register("observaciones")} className="textarea" rows={3} />
             </label>
-            <label style={labelStyle}>
-              <span>Seguimiento sugerido</span>
-              <textarea {...register("seguimiento")} style={textareaStyle} rows={3} />
+            <label className="form-field form-field--full">
+              <span className="form-field__label">Seguimiento sugerido</span>
+              <textarea {...register("seguimiento")} className="textarea" rows={3} />
             </label>
-          </div>
-          {mensaje && <div style={{ color: "#22c55e", fontWeight: 600 }}>{mensaje}</div>}
-          {error && <div style={{ color: "#ef4444" }}>{error}</div>}
-          <button type="submit" disabled={enviando} style={submitButton}>
-            {enviando ? "Guardando..." : "Registrar tutoría"}
-          </button>
-        </form>
-      </section>
+          
 
-      <section style={panelStyle}>
-        <header style={{ marginBottom: "16px" }}>
-          <h2 style={{ margin: 0 }}>Historial reciente</h2>
-          <p style={{ color: "#6b7280" }}>
-            Filtre por periodo y estudiante para visualizar las sesiones registradas.
-          </p>
-        </header>
-        <div className="table-scroll">
-          <table style={tablaStyle}>
-            <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Estudiante</th>
-                <th>Tema</th>
-                <th>Periodo</th>
-                <th>Seguimiento</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tutorias?.map((tutoria) => (
-                <FilaTutoria key={tutoria.id_tutoria} tutoria={tutoria} />
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {tutorias && tutorias.length === 0 && (
-          <p style={{ color: "#6b7280", textAlign: "center", marginTop: "16px" }}>
-            Registre una tutoría para visualizarla aquí.
-          </p>
-        )}
-      </section>
+            {mensaje && <div className="status-message status-message--success form-field--full">{mensaje}</div>}
+            {error && <div className="status-message status-message--error form-field--full">{error}</div>}
+
+            <button type="submit" disabled={enviando} className="button button--primary form-field--full">
+              {enviando ? "Guardando..." : "Registrar tutoría"}
+            </button>
+          </form>
+        </section>
+
+        <section className="surface-card">
+          <header className="surface-header">
+            <div>
+              <h2 className="section-title">Historial reciente</h2>
+              <p className="section-subtitle">Filtre por periodo y estudiante para visualizar las sesiones registradas.</p>
+            </div>
+          </header>
+          <div className="table-wrapper table-scroll">
+            <table className="styled-table">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Estudiante</th>
+                  <th>Tema</th>
+                  <th>Periodo</th>
+                  <th>Seguimiento</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tutorias?.map((tutoria: ApiTutoriasResponse) => (
+                  <FilaTutoria key={tutoria.id_tutoria} tutoria={tutoria} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {tutorias && tutorias.length === 0 && (
+            <p className="empty-state">Registre una tutoría para visualizarla aquí.</p>
+          )}
+        </section>
+      </div>
     </div>
   );
 }

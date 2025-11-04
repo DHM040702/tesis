@@ -1,5 +1,4 @@
-
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "../api/client";
 import { RiskSummaryItem } from "../types";
@@ -40,47 +39,36 @@ export function DashboardPage() {
   const stats = useMemo(() => calcularEstadisticas(resumen ?? []), [resumen]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-      <header>
-        <h1 style={{ margin: 0, color: "#111827" }}>Resumen de riesgo estudiantil</h1>
-        <p style={{ color: "#4b5563", marginTop: "8px" }}>
-          Visualice los puntajes de riesgo generados por el modelo predictivo.
+    <div className="page">
+      <header className="page-header">
+        <h1 className="page-title">Resumen de riesgo estudiantil</h1>
+        <p className="page-description">
+          Visualice los puntajes generados por el modelo predictivo y priorice la atención de estudiantes con mayor riesgo.
         </p>
       </header>
 
-      <section
-        style={{
-          display: "flex",
-          gap: "16px",
-          flexWrap: "wrap",
-          background: "#fff",
-          padding: "20px",
-          borderRadius: "12px",
-          boxShadow: "0 12px 24px rgba(15, 23, 42, 0.05)"
-        }}
-      >
-        <div style={{ minWidth: "220px", flex: 1 }}>
-          <label style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <span>Periodo académico</span>
+      <section className="surface-card surface-card--compact">
+        <div className="filters-panel">
+          <label className="form-field">
+            <span className="form-field__label">Periodo académico</span>
             <select
               value={filters.periodo ?? ""}
               onChange={(e) => setFilters((prev) => ({ ...prev, periodo: Number(e.target.value) }))}
-              style={selectStyle}
+              className="select"
             >
               <option value="" disabled>
                 Seleccione un periodo
               </option>
-              {periodos?.map((periodo) => (
+              {periodos?.map((periodo: { id_periodo: number; nombre: string }) => (
                 <option key={periodo.id_periodo} value={periodo.id_periodo}>
                   {periodo.nombre}
                 </option>
               ))}
             </select>
           </label>
-        </div>
-        <div style={{ minWidth: "220px", flex: 1 }}>
-          <label style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <span>Programa académico</span>
+
+          <label className="form-field">
+            <span className="form-field__label">Programa académico</span>
             <select
               value={filters.programa ?? ""}
               onChange={(e) =>
@@ -89,57 +77,59 @@ export function DashboardPage() {
                   programa: e.target.value ? Number(e.target.value) : undefined
                 }))
               }
-              style={selectStyle}
+              className="select"
             >
               <option value="">Todos</option>
-              {programas?.map((programa) => (
+              {programas?.map((programa: { id_programa: number; nombre: string }) => (
                 <option key={programa.id_programa} value={programa.id_programa}>
                   {programa.nombre}
                 </option>
               ))}
             </select>
           </label>
+
+          <button type="button" onClick={() => refetch()} className="button button--primary">
+            {isFetching ? "Actualizando..." : "Actualizar"}
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => refetch()}
-          style={buttonStyle}
-        >
-          {isFetching ? "Actualizando..." : "Actualizar"}
-        </button>
       </section>
 
-      <section style={{ display: "grid", gap: "16px", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+      <section className="stat-grid">
         <StatCard titulo="Estudiantes evaluados" valor={stats.total.toString()} descripcion="Total de registros con puntaje" />
-        <StatCard titulo="Riesgo alto" valor={stats.altos.toString()} descripcion="Estudiantes clasificados como alto riesgo" color="#ef4444" />
-        <StatCard titulo="Riesgo medio" valor={stats.medios.toString()} descripcion="Estudiantes clasificados como riesgo medio" color="#f97316" />
-        <StatCard titulo="Riesgo bajo" valor={stats.bajos.toString()} descripcion="Estudiantes clasificados como riesgo bajo" color="#22c55e" />
+        <StatCard
+          titulo="Riesgo alto"
+          valor={stats.altos.toString()}
+          descripcion="Estudiantes clasificados como alto riesgo"
+          color="#ef4444"
+        />
+        <StatCard
+          titulo="Riesgo medio"
+          valor={stats.medios.toString()}
+          descripcion="Estudiantes clasificados como riesgo medio"
+          color="#f97316"
+        />
+        <StatCard
+          titulo="Riesgo bajo"
+          valor={stats.bajos.toString()}
+          descripcion="Estudiantes clasificados como riesgo bajo"
+          color="#22c55e"
+        />
       </section>
 
-      <section
-        style={{
-          background: "#fff",
-          padding: "24px",
-          borderRadius: "12px",
-          boxShadow: "0 12px 24px rgba(15, 23, 42, 0.05)",
-          display: "flex",
-          flexDirection: "column",
-          gap: "16px"
-        }}
-      >
-        <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <section className="surface-card">
+        <header className="surface-header">
           <div>
-            <h2 style={{ margin: 0 }}>Detalle de estudiantes</h2>
-            <p style={{ color: "#6b7280", marginTop: "4px" }}>
+            <h2 className="section-title">Detalle de estudiantes</h2>
+            <p className="section-subtitle">
               Tabla ordenada por puntaje ascendente (menor puntaje = mayor riesgo).
             </p>
           </div>
-          <span style={{ color: "#9ca3af" }}>
+          <span className="surface-header__meta">
             {resumen?.length ?? 0} registros · Actualizado {dayjs().format("DD/MM/YYYY HH:mm")}
           </span>
         </header>
-        <div className="table-scroll">
-          <table style={tableStyle}>
+        <div className="table-wrapper table-scroll">
+          <table className="styled-table">
             <thead>
               <tr>
                 <th>Documento</th>
@@ -157,9 +147,7 @@ export function DashboardPage() {
             </tbody>
           </table>
         </div>
-        {resumen?.length === 0 && (
-          <p style={{ color: "#6b7280", textAlign: "center" }}>No hay resultados para los filtros seleccionados.</p>
-        )}
+        {resumen?.length === 0 && <p className="page-description">No hay resultados para los filtros seleccionados.</p>}
       </section>
     </div>
   );
@@ -174,36 +162,14 @@ function calcularEstadisticas(resumen: RiskSummaryItem[]) {
 }
 
 function StatCard({ titulo, valor, descripcion, color = "#2563eb" }: { titulo: string; valor: string; descripcion: string; color?: string }) {
+  const style = { "--accent-color": color } as CSSProperties;
   return (
-    <article
-      style={{
-        background: "#fff",
-        padding: "20px",
-        borderRadius: "12px",
-        boxShadow: "0 12px 24px rgba(15, 23, 42, 0.05)",
-        display: "flex",
-        flexDirection: "column",
-        gap: "8px"
-      }}
-    >
-      <span style={{ color: "#6b7280", fontSize: "0.9rem" }}>{titulo}</span>
-      <strong style={{ fontSize: "2.25rem", color }}>{valor}</strong>
-      <span style={{ color: "#9ca3af", fontSize: "0.9rem" }}>{descripcion}</span>
+    <article className="stat-card" style={style}>
+      <span className="stat-card__label">{titulo}</span>
+      <strong className="stat-card__value">{valor}</strong>
+      <span className="stat-card__description">{descripcion}</span>
     </article>
   );
-}
-function formatPuntaje(puntaje: RiskSummaryItem["puntaje"]) {
-  if (puntaje === null || puntaje === undefined) {
-    return "N/A";
-  }
-
-  const valorNumerico = Number(puntaje);
-
-  if (Number.isFinite(valorNumerico)) {
-    return valorNumerico.toFixed(2);
-  }
-
-  return "N/A";
 }
 
 function RowResumen({ item }: { item: RiskSummaryItem }) {
@@ -222,52 +188,22 @@ function RowResumen({ item }: { item: RiskSummaryItem }) {
 }
 
 function NivelBadge({ nivel }: { nivel: string }) {
-  const color = nivel.toLowerCase().includes("alto")
-    ? "#fee2e2"
-    : nivel.toLowerCase().includes("medio")
-      ? "#fef3c7"
-      : "#dcfce7";
-  const text = nivel.toLowerCase().includes("alto")
-    ? "#b91c1c"
-    : nivel.toLowerCase().includes("medio")
-      ? "#c2410c"
-      : "#15803d";
-  return (
-    <span
-      style={{
-        background: color,
-        color: text,
-        padding: "4px 8px",
-        borderRadius: "999px",
-        fontSize: "0.85rem",
-        fontWeight: 600
-      }}
-    >
-      {nivel}
-    </span>
-  );
+  const nivelLower = nivel.toLowerCase();
+  const variant = nivelLower.includes("alto") ? "high" : nivelLower.includes("medio") ? "medium" : nivelLower.includes("bajo") ? "low" : "neutral";
+
+  return <span className={`badge badge--${variant}`}>{nivel}</span>;
 }
 
-const selectStyle: React.CSSProperties = {
-  padding: "10px 12px",
-  borderRadius: "8px",
-  border: "1px solid #d1d5db",
-  background: "#fff"
-};
+function formatPuntaje(puntaje: RiskSummaryItem["puntaje"]) {
+  if (puntaje === null || puntaje === undefined) {
+    return "N/A";
+  }
 
-const buttonStyle: React.CSSProperties = {
-  alignSelf: "flex-end",
-  padding: "12px 20px",
-  borderRadius: "10px",
-  background: "#2563eb",
-  color: "#fff",
-  border: "none",
-  fontWeight: 600,
-  cursor: "pointer"
-};
+  const valorNumerico = Number(puntaje);
 
-const tableStyle: React.CSSProperties = {
-  width: "100%",
-  borderCollapse: "collapse",
-  minWidth: "720px"
-};
+  if (Number.isFinite(valorNumerico)) {
+    return valorNumerico.toFixed(2);
+  }
+
+  return "N/A";
+}
