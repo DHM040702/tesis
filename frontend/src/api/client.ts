@@ -4,6 +4,7 @@ import {
   ApiResponse,
   ApiTutoriasResponse,
   ApiUser,
+  PaginatedResponse,
   PeriodoItem,
   ProgramItem,
   RiskLevelItem,
@@ -237,21 +238,46 @@ class ApiClient {
     return res.data ?? [];
   }
 
-  async getStudents(filters: { programa?: number; periodo?: number; riesgo?: string }): Promise<StudentItem[]> {
+  async getStudents(params: {
+    programa?: number;
+    periodo?: number;
+    riesgo?: string;
+    page?: number;
+    pageSize?: number;
+  }): Promise<PaginatedResponse<StudentItem>> {
     const query = new URLSearchParams();
-    if (filters.programa) {
-      query.append("programa", String(filters.programa));
+    if (params.programa) {
+      query.append("programa", String(params.programa));
     }
-    if (filters.periodo) {
-      query.append("periodo", String(filters.periodo));
+    if (params.periodo) {
+      query.append("periodo", String(params.periodo));
     }
-    if (filters.riesgo) {
-      query.append("riesgo", filters.riesgo);
+    if (params.riesgo) {
+      query.append("riesgo", params.riesgo);
+    }
+    if (params.page) {
+      query.append("page", String(params.page));
+    }
+    if (params.pageSize) {
+      query.append("page_size", String(params.pageSize));
     }
     const search = query.toString();
     const endpoint = search ? `/estudiantes?${search}` : "/estudiantes";
-    const res = await this.request<ApiResponse<StudentItem[]>>(endpoint);
-    return res.data ?? [];
+    const res = await this.request<ApiResponse<{
+      items?: StudentItem[];
+      total?: number;
+      page?: number;
+      page_size?: number;
+    }>>(endpoint);
+    const fallbackPage = params.page ?? 1;
+    const fallbackPageSize = params.pageSize ?? 20;
+    const data = res.data ?? {};
+    return {
+      items: data.items ?? [],
+      total: data.total ?? 0,
+      page: data.page ?? fallbackPage,
+      pageSize: data.page_size ?? fallbackPageSize
+    };
   }
 
   async getTutorAssignments(id_periodo?: number): Promise<TutorAssignment[]> {

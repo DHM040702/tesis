@@ -5,6 +5,13 @@ export type ApiResponse<T> = {
   message?: string;
 };
 
+export type PaginatedResponse<T> = {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
 export type ApiLoginResponse = {
   access_token: string;
   refresh_token: string;

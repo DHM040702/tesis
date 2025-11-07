@@ -15,19 +15,29 @@ type Filters = {
   riesgo?: string;
 };
 
+const PAGE_SIZE_OPTIONS = [10, 20, 30, 40];
+
 export function StudentsPage() {
   const [filters, setFilters] = useState<Filters>({});
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const { data: periodos } = useQuery({ queryKey: ["periodos"], queryFn: () => apiClient.getPeriodos() });
   const { data: programas } = useQuery({ queryKey: ["programas"], queryFn: () => apiClient.getProgramas() });
   const { data: niveles } = useQuery({ queryKey: ["niveles"], queryFn: () => apiClient.getNivelesRiesgo() });
 
   const { data: estudiantes, isFetching } = useQuery({
-    queryKey: ["estudiantes", filters],
-    queryFn: () => apiClient.getStudents(filters),
-    placeholderData: []
+    queryKey: ["estudiantes", filters, page, pageSize],
+    queryFn: () =>
+      apiClient.getStudents({
+        ...filters,
+        page,
+        pageSize
+      }),
+    placeholderData: () => ({ items: [], total: 0, page, pageSize })
   });
 
-  const totales = useMemo(() => calcularTotales(estudiantes ?? []), [estudiantes]);
+  const totales = useMemo(() => calcularTotales(estudiantes?.items ?? []), [estudiantes]);
+  const totalEstudiantes = estudiantes?.total ?? 0;
 
   return (
     <div className="page">
@@ -40,22 +50,38 @@ export function StudentsPage() {
         <FiltroSelect
           label="Programa académico"
           value={filters.programa ?? ""}
-          onChange={(value) => setFilters((prev) => ({ ...prev, programa: value ? Number(value) : undefined }))}
+          onChange={(value) => {
+            setFilters((prev) => ({ ...prev, programa: value ? Number(value) : undefined }));
+            setPage(1);
+          }}
           opciones={[{ value: "", label: "Todos" }, ...(programas ?? []).map((p) => ({ value: String(p.id_programa), label: p.nombre }))]}
         />
         <FiltroSelect
           label="Periodo"
           value={filters.periodo ?? ""}
-          onChange={(value) => setFilters((prev) => ({ ...prev, periodo: value ? Number(value) : undefined }))}
+          onChange={(value) => {
+            setFilters((prev) => ({ ...prev, periodo: value ? Number(value) : undefined }));
+            setPage(1);
+          }}
           opciones={[{ value: "", label: "Todos" }, ...(periodos ?? []).map((p) => ({ value: String(p.id_periodo), label: p.nombre }))]}
         />
         <FiltroSelect
           label="Nivel de riesgo"
           value={filters.riesgo ?? ""}
-          onChange={(value) => setFilters((prev) => ({ ...prev, riesgo: value || undefined }))}
+          onChange={(value) => {
+            setFilters((prev) => ({ ...prev, riesgo: value || undefined }));
+            setPage(1);
+          }}
           opciones={[{ value: "", label: "Todos" }, ...(niveles ?? []).map((n) => ({ value: n.nombre, label: n.nombre }))]}
         />
-        <button type="button" onClick={() => setFilters({})} className="button button--ghost filters-panel__action">
+        <button
+          type="button"
+          onClick={() => {
+            setFilters({});
+            setPage(1);
+          }}
+          className="button button--ghost filters-panel__action"
+        >
           Limpiar filtros
         </button>
       </section>
@@ -87,13 +113,13 @@ export function StudentsPage() {
               </tr>
             </thead>
             <tbody>
-              {estudiantes?.map((est) => (
+              {estudiantes?.items.map((est) => (
                 <tr key={est.id_estudiante}>
                   <td>{est.codigo_alumno ?? "-"}</td>
                   <td>{est.dni ?? "-"}</td>
                   <td>{`${est.apellido_paterno ?? ""} ${est.apellido_materno ?? ""}, ${est.nombres ?? ""}`}</td>
                   <td>{est.programa ?? "-"}</td>
-                  <td>{est.puntaje?.toFixed(2) ?? "-"}</td>
+                  <td>{formatearPuntaje(est.puntaje)}</td>
                   <td>
                     <NivelEtiqueta nivel={est.nivel ?? "Sin dato"} />
                   </td>
@@ -102,12 +128,99 @@ export function StudentsPage() {
             </tbody>
           </table>
         </div>
-        {estudiantes && estudiantes.length === 0 && (
+        {estudiantes && estudiantes.items.length === 0 && (
           <p className="empty-message">No se encontraron estudiantes con los filtros seleccionados.</p>
         )}
+        <PaginationControls
+          page={page}
+          pageSize={pageSize}
+          totalItems={totalEstudiantes}
+          onPageChange={(newPage) => setPage(newPage)}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+          isFetching={isFetching}
+        />
       </section>
     </div>
   );
+}
+
+function PaginationControls({
+  page,
+  pageSize,
+  totalItems,
+  onPageChange,
+  onPageSizeChange,
+  isFetching
+}: {
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (pageSize: number) => void;
+  isFetching: boolean;
+}) {
+  const totalPages = totalItems > 0 ? Math.ceil(totalItems / pageSize) : 1;
+  const start = totalItems === 0 ? 0 : (page - 1) * pageSize + 1;
+  const end = totalItems === 0 ? 0 : Math.min(page * pageSize, totalItems);
+
+  return (
+    <div className="table-pagination">
+      <div className="table-pagination__info">
+        {totalItems === 0 ? "No hay estudiantes para mostrar" : `Mostrando ${start}-${end} de ${totalItems} estudiantes`}
+        {isFetching && <span className="table-pagination__updating">Actualizando...</span>}
+      </div>
+      <div className="table-pagination__actions">
+        <label className="field table-pagination__page-size">
+          <span className="field__label">Registros por página</span>
+          <select
+            className="field__control"
+            value={pageSize}
+            onChange={(event) => onPageSizeChange(Number(event.target.value))}
+          >
+            {PAGE_SIZE_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="table-pagination__buttons">
+          <button
+            type="button"
+            className="button button--ghost"
+            onClick={() => onPageChange(Math.max(1, page - 1))}
+            disabled={page <= 1}
+          >
+            Anterior
+          </button>
+          <span className="table-pagination__page-indicator">
+            Página {Math.min(page, totalPages)} de {totalPages}
+          </span>
+          <button
+            type="button"
+            className="button button--ghost"
+            onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+            disabled={page >= totalPages}
+          >
+            Siguiente
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function formatearPuntaje(valor: StudentItem["puntaje"]) {
+  if (typeof valor === "number") {
+    return valor.toFixed(2);
+  }
+  if (typeof valor === "string" && valor.trim() !== "") {
+    return valor;
+  }
+  return "-";
 }
 
 function NivelEtiqueta({ nivel }: { nivel: string }) {
