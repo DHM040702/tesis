@@ -29,34 +29,38 @@ export function LoginPage() {
   });
 
   return (
-    <div className="auth-layout">
-      <form onSubmit={onSubmit} className="auth-card">
-        <h1 className="auth-card__title">SIA UNASAM</h1>
-        <p className="auth-card__subtitle">Ingrese sus credenciales institucionales</p>
+    <div className="login">
+      <div className="login__overlay" aria-hidden />
+      <form onSubmit={onSubmit} className="login__card">
+        <header className="login__header">
+          <span className="login__badge">SIA UNASAM</span>
+          <h1>Accede a tu panel</h1>
+          <p>Ingrese sus credenciales institucionales para continuar.</p>
+        </header>
 
-        <label className="form-field">
-          <span className="form-field__label">Correo institucional</span>
+        <label className="field">
+          <span className="field__label">Correo institucional</span>
           <input
             type="email"
             {...register("correo", { required: true })}
-            className="input"
+            className="field__control"
             placeholder="usuario@unasam.edu.pe"
             autoComplete="email"
           />
         </label>
 
-        <label className="form-field">
-          <span className="form-field__label">Contraseña</span>
+        <label className="field">
+          <span className="field__label">Contraseña</span>
           <input
             type="password"
             {...register("contrasenia", { required: true })}
-            className="input"
+            className="field__control"
             placeholder="Ingrese su contraseña"
             autoComplete="current-password"
           />
         </label>
-        
-        {error && <div className="form-error">{error}</div>}
+
+        {error && <div className="alert alert--error">{error}</div>}
 
         <button type="submit" disabled={loading} className="button button--primary button--full">
           {loading ? "Ingresando..." : "Ingresar"}

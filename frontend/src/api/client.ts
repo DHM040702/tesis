@@ -20,6 +20,23 @@ type Tokens = {
   refreshToken: string | null;
 };
 
+type Programa = { id_programa: number; nombre: string };
+type NivelRiesgo = { id_nivel_riesgo: number; nombre: string; descripcion?: string };
+type TutorAssignment = Pick<StudentItem, "id_estudiante" | "dni" | "programa" | "periodo"> & {
+  estudiante?: string | null;
+};
+
+type CreateTutoriaPayload = {
+  id_estudiante: number;
+  id_periodo: number;
+  id_modalidad: number;
+  tema: string;
+  fecha_hora?: string;
+  observaciones?: string;
+  seguimiento?: string;
+};
+
+
 class ApiClient {
   private accessToken: string | null = null;
   private refreshToken: string | null = null;
@@ -210,46 +227,50 @@ class ApiClient {
     return res.data ?? [];
   }
 
-  async getProgramas(): Promise<ProgramItem[]> {
-    const res = await this.request<ApiResponse<ProgramItem[]>>("/catalogos/programas");
+  async getProgramas(): Promise<Programa[]> {
+    const res = await this.request<ApiResponse<Programa[]>>("/catalogos/programas");
     return res.data ?? [];
   }
 
-  async getNivelesRiesgo(): Promise<RiskLevelItem[]> {
-    const res = await this.request<ApiResponse<RiskLevelItem[]>>("/catalogos/niveles-riesgo");
+  async getNivelesRiesgo(): Promise<NivelRiesgo[]> {
+    const res = await this.request<ApiResponse<NivelRiesgo[]>>("/catalogos/niveles-riesgo");
     return res.data ?? [];
   }
 
-  async getStudents(params: { programa?: number; periodo?: number; riesgo?: string } = {}): Promise<StudentItem[]> {
+  async getStudents(filters: { programa?: number; periodo?: number; riesgo?: string }): Promise<StudentItem[]> {
     const query = new URLSearchParams();
-    if (params.programa) {
-      query.append("programa", String(params.programa));
+    if (filters.programa) {
+      query.append("programa", String(filters.programa));
     }
-    if (params.periodo) {
-      query.append("periodo", String(params.periodo));
+    if (filters.periodo) {
+      query.append("periodo", String(filters.periodo));
     }
-    if (params.riesgo) {
-      query.append("riesgo", params.riesgo);
+    if (filters.riesgo) {
+      query.append("riesgo", filters.riesgo);
     }
     const search = query.toString();
-    const res = await this.request<ApiResponse<StudentItem[]>>(
-      search ? `/estudiantes/?${search}` : "/estudiantes/"
-    );
+    const endpoint = search ? `/estudiantes?${search}` : "/estudiantes";
+    const res = await this.request<ApiResponse<StudentItem[]>>(endpoint);
     return res.data ?? [];
   }
 
-  async getTutorAssignments(id_periodo?: number): Promise<TutorAssignmentItem[]> {
+  async getTutorAssignments(id_periodo?: number): Promise<TutorAssignment[]> {
     const query = new URLSearchParams();
     if (id_periodo) {
       query.append("id_periodo", String(id_periodo));
     }
-    const search = query.toString();
-    const res = await this.request<ApiResponse<TutorAssignmentItem[]>>(
-      search ? `/tutorias/tutores/mis-estudiantes?${search}` : "/tutorias/tutores/mis-estudiantes"
-    );
-    return res.data ?? [];
+    const endpoint = query.size ? `/tutorias/tutores/mis-estudiantes?${query.toString()}` : "/tutorias/tutores/mis-estudiantes";
+    const res = await this.request<ApiResponse<Array<TutorAssignment & { estudiante?: string | null }>>>(endpoint);
+    return (res.data ?? []).map((item) => ({
+      ...item,
+      periodo: item.periodo ?? undefined,
+      programa: item.programa ?? undefined,
+      estudiante: item.estudiante ?? undefined,
+      dni: item.dni ?? undefined
+    }));
   }
-    async getTutorias(params: { id_estudiante?: number; id_periodo?: number }): Promise<ApiTutoriasResponse[]> {
+
+  async getTutorias(params: { id_estudiante?: number; id_periodo?: number }): Promise<ApiTutoriasResponse[]> {
     const query = new URLSearchParams();
     if (params.id_estudiante) {
       query.append("id_estudiante", String(params.id_estudiante));
@@ -257,27 +278,17 @@ class ApiClient {
     if (params.id_periodo) {
       query.append("id_periodo", String(params.id_periodo));
     }
-    const search = query.toString();
-    const res = await this.request<ApiResponse<ApiTutoriasResponse[]>>(
-      search ? `/tutorias/?${search}` : "/tutorias/"
-    );
+    const endpoint = query.size ? `/tutorias?${query.toString()}` : "/tutorias";
+    const res = await this.request<ApiResponse<ApiTutoriasResponse[]>>(endpoint);
     return res.data ?? [];
   }
 
-  async createTutoria(payload: {
-    id_estudiante: number;
-    id_periodo: number;
-    id_modalidad: number;
-    tema: string;
-    fecha_hora?: string;
-    observaciones?: string;
-    seguimiento?: string;
-    id_tutor_override?: number;
-  }): Promise<void> {
-    await this.request<ApiResponse<unknown>>("/tutorias/", {
+  async createTutoria(payload: CreateTutoriaPayload) {
+    const res = await this.request<ApiResponse<unknown>>("/tutorias", {
       method: "POST",
       body: JSON.stringify(payload)
     });
+    return res;
   }
 }
 

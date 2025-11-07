@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useQuery } from "@tanstack/react-query";
+import dayjs from "dayjs";
 import { apiClient } from "../api/client";
 import { RiskSummaryItem } from "../types";
-import dayjs from "dayjs";
 
 type Filters = {
   periodo?: number;
@@ -40,35 +40,34 @@ export function DashboardPage() {
 
   return (
     <div className="page">
-      <header className="page-header">
-        <h1 className="page-title">Resumen de riesgo estudiantil</h1>
-        <p className="page-description">
-          Visualice los puntajes generados por el modelo predictivo y priorice la atención de estudiantes con mayor riesgo.
-        </p>
+      <header className="page__header">
+        <h1 className="page__title">Resumen de riesgo estudiantil</h1>
+        <p className="page__subtitle">Visualice los puntajes de riesgo generados por el modelo predictivo.</p>
       </header>
 
-      <section className="surface-card surface-card--compact">
-        <div className="filters-panel">
-          <label className="form-field">
-            <span className="form-field__label">Periodo académico</span>
+      <section className="surface filters-panel">
+        <div className="filters-panel__column">
+          <label className="field">
+            <span className="field__label">Periodo académico</span>
             <select
               value={filters.periodo ?? ""}
               onChange={(e) => setFilters((prev) => ({ ...prev, periodo: Number(e.target.value) }))}
-              className="select"
+              className="field__control"
             >
               <option value="" disabled>
                 Seleccione un periodo
               </option>
-              {periodos?.map((periodo: { id_periodo: number; nombre: string }) => (
+              {periodos?.map((periodo) => (
                 <option key={periodo.id_periodo} value={periodo.id_periodo}>
                   {periodo.nombre}
                 </option>
               ))}
             </select>
           </label>
-
-          <label className="form-field">
-            <span className="form-field__label">Programa académico</span>
+        </div>
+        <div className="filters-panel__column">
+          <label className="field">
+            <span className="field__label">Programa académico</span>
             <select
               value={filters.programa ?? ""}
               onChange={(e) =>
@@ -77,59 +76,43 @@ export function DashboardPage() {
                   programa: e.target.value ? Number(e.target.value) : undefined
                 }))
               }
-              className="select"
+              className="field__control"
             >
               <option value="">Todos</option>
-              {programas?.map((programa: { id_programa: number; nombre: string }) => (
+              {programas?.map((programa) => (
                 <option key={programa.id_programa} value={programa.id_programa}>
                   {programa.nombre}
                 </option>
               ))}
             </select>
           </label>
-
-          <button type="button" onClick={() => refetch()} className="button button--primary">
-            {isFetching ? "Actualizando..." : "Actualizar"}
-          </button>
         </div>
+        <button type="button" onClick={() => refetch()} className="button button--primary filters-panel__action">
+          {isFetching ? "Actualizando..." : "Actualizar"}
+        </button>
       </section>
 
-      <section className="stat-grid">
+      <section className="stats-grid">
         <StatCard titulo="Estudiantes evaluados" valor={stats.total.toString()} descripcion="Total de registros con puntaje" />
-        <StatCard
-          titulo="Riesgo alto"
-          valor={stats.altos.toString()}
-          descripcion="Estudiantes clasificados como alto riesgo"
-          color="#ef4444"
-        />
-        <StatCard
-          titulo="Riesgo medio"
-          valor={stats.medios.toString()}
-          descripcion="Estudiantes clasificados como riesgo medio"
-          color="#f97316"
-        />
-        <StatCard
-          titulo="Riesgo bajo"
-          valor={stats.bajos.toString()}
-          descripcion="Estudiantes clasificados como riesgo bajo"
-          color="#22c55e"
-        />
+        <StatCard titulo="Riesgo alto" valor={stats.altos.toString()} descripcion="Estudiantes clasificados como alto riesgo" color="#ef4444" />
+        <StatCard titulo="Riesgo medio" valor={stats.medios.toString()} descripcion="Estudiantes clasificados como riesgo medio" color="#f97316" />
+        <StatCard titulo="Riesgo bajo" valor={stats.bajos.toString()} descripcion="Estudiantes clasificados como riesgo bajo" color="#16a34a" />
       </section>
 
-      <section className="surface-card">
-        <header className="surface-header">
+      <section className="surface">
+        <header className="section-header">
           <div>
-            <h2 className="section-title">Detalle de estudiantes</h2>
-            <p className="section-subtitle">
+            <h2 className="section-header__title">Detalle de estudiantes</h2>
+            <p className="section-header__subtitle">
               Tabla ordenada por puntaje ascendente (menor puntaje = mayor riesgo).
             </p>
           </div>
-          <span className="surface-header__meta">
+          <span className="section-header__meta">
             {resumen?.length ?? 0} registros · Actualizado {dayjs().format("DD/MM/YYYY HH:mm")}
           </span>
         </header>
-        <div className="table-wrapper table-scroll">
-          <table className="styled-table">
+        <div className="table-scroll">
+          <table className="table table--md">
             <thead>
               <tr>
                 <th>Documento</th>
@@ -147,7 +130,9 @@ export function DashboardPage() {
             </tbody>
           </table>
         </div>
-        {resumen?.length === 0 && <p className="page-description">No hay resultados para los filtros seleccionados.</p>}
+        {resumen?.length === 0 && (
+          <p className="empty-message">No hay resultados para los filtros seleccionados.</p>
+        )}
       </section>
     </div>
   );
@@ -162,11 +147,12 @@ function calcularEstadisticas(resumen: RiskSummaryItem[]) {
 }
 
 function StatCard({ titulo, valor, descripcion, color = "#2563eb" }: { titulo: string; valor: string; descripcion: string; color?: string }) {
-  const style = { "--accent-color": color } as CSSProperties;
   return (
-    <article className="stat-card" style={style}>
-      <span className="stat-card__label">{titulo}</span>
-      <strong className="stat-card__value">{valor}</strong>
+    <article className="stat-card">
+      <span className="stat-card__title">{titulo}</span>
+      <strong className="stat-card__value" style={{ color }}>
+        {valor}
+      </strong>
       <span className="stat-card__description">{descripcion}</span>
     </article>
   );
@@ -188,10 +174,16 @@ function RowResumen({ item }: { item: RiskSummaryItem }) {
 }
 
 function NivelBadge({ nivel }: { nivel: string }) {
-  const nivelLower = nivel.toLowerCase();
-  const variant = nivelLower.includes("alto") ? "high" : nivelLower.includes("medio") ? "medium" : nivelLower.includes("bajo") ? "low" : "neutral";
+  const normalized = nivel.toLowerCase();
+  const variant = normalized.includes("alto")
+    ? "badge--danger"
+    : normalized.includes("medio")
+      ? "badge--warning"
+      : normalized.includes("bajo")
+        ? "badge--success"
+        : "";
 
-  return <span className={`badge badge--${variant}`}>{nivel}</span>;
+  return <span className={`badge ${variant}`}>{nivel}</span>;
 }
 
 function formatPuntaje(puntaje: RiskSummaryItem["puntaje"]) {

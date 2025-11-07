@@ -1,18 +1,18 @@
-import { useMemo, useState, type CSSProperties } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "../api/client";
 import { StudentItem } from "../types";
+
+const nivelesClases: Record<string, string> = {
+  alto: "badge--danger",
+  medio: "badge--warning",
+  bajo: "badge--success"
+};
 
 type Filters = {
   programa?: number;
   periodo?: number;
   riesgo?: string;
-};
-
-const nivelesColores: Record<string, string> = {
-  alto: "high",
-  medio: "medium",
-  bajo: "low"
 };
 
 export function StudentsPage() {
@@ -31,68 +31,51 @@ export function StudentsPage() {
 
   return (
     <div className="page">
-      <header className="page-header">
-        <h1 className="page-title">Listado de estudiantes</h1>
-        <p className="page-description">
-          Filtre por programa, periodo o nivel de riesgo para priorizar la atención de los estudiantes que más lo necesitan.
-        </p>
+      <header className="page__header">
+        <h1 className="page__title">Listado de estudiantes</h1>
+        <p className="page__subtitle">Filtre por programa, periodo o nivel de riesgo para priorizar la atención.</p>
       </header>
 
-      <section className="surface-card surface-card--compact">
-        <div className="filters-panel">
-          <FiltroSelect
-            label="Programa académico"
-            value={filters.programa ?? ""}
-            onChange={(value) => setFilters((prev) => ({ ...prev, programa: value ? Number(value) : undefined }))}
-            opciones={[
-              { value: "", label: "Todos" },
-              ...(programas ?? []).map((p: { id_programa: number; nombre: string }) => ({
-                value: String(p.id_programa),
-                label: p.nombre
-              }))
-            ]}
-          />
-          <FiltroSelect
-            label="Periodo"
-            value={filters.periodo ?? ""}
-            onChange={(value) => setFilters((prev) => ({ ...prev, periodo: value ? Number(value) : undefined }))}
-            opciones={[
-              { value: "", label: "Todos" },
-              ...(periodos ?? []).map((p: { id_periodo: number; nombre: string }) => ({
-                value: String(p.id_periodo),
-                label: p.nombre
-              }))
-            ]}
-          />
-          <FiltroSelect
-            label="Nivel de riesgo"
-            value={filters.riesgo ?? ""}
-            onChange={(value) => setFilters((prev) => ({ ...prev, riesgo: value || undefined }))}
-            opciones={[
-              { value: "", label: "Todos" },
-              ...(niveles ?? []).map((n: { nombre: string }) => ({ value: n.nombre, label: n.nombre }))
-            ]}
-          />
-          <button type="button" onClick={() => setFilters({})} className="button button--subtle">
-            Limpiar filtros
-          </button>
-        </div>
+      <section className="surface filters-panel">
+        <FiltroSelect
+          label="Programa académico"
+          value={filters.programa ?? ""}
+          onChange={(value) => setFilters((prev) => ({ ...prev, programa: value ? Number(value) : undefined }))}
+          opciones={[{ value: "", label: "Todos" }, ...(programas ?? []).map((p) => ({ value: String(p.id_programa), label: p.nombre }))]}
+        />
+        <FiltroSelect
+          label="Periodo"
+          value={filters.periodo ?? ""}
+          onChange={(value) => setFilters((prev) => ({ ...prev, periodo: value ? Number(value) : undefined }))}
+          opciones={[{ value: "", label: "Todos" }, ...(periodos ?? []).map((p) => ({ value: String(p.id_periodo), label: p.nombre }))]}
+        />
+        <FiltroSelect
+          label="Nivel de riesgo"
+          value={filters.riesgo ?? ""}
+          onChange={(value) => setFilters((prev) => ({ ...prev, riesgo: value || undefined }))}
+          opciones={[{ value: "", label: "Todos" }, ...(niveles ?? []).map((n) => ({ value: n.nombre, label: n.nombre }))]}
+        />
+        <button type="button" onClick={() => setFilters({})} className="button button--ghost filters-panel__action">
+          Limpiar filtros
+        </button>
       </section>
 
-      <section className="stat-grid">
+      <section className="summary-grid">
         <ResumenCard titulo="Total" cantidad={totales.total} />
-        <ResumenCard titulo="Riesgo alto" cantidad={totales.alto} colorFondo="#fee2e2" colorTexto="#b91c1c" />
-        <ResumenCard titulo="Riesgo medio" cantidad={totales.medio} colorFondo="#fef3c7" colorTexto="#c2410c" />
-        <ResumenCard titulo="Riesgo bajo" cantidad={totales.bajo} colorFondo="#dcfce7" colorTexto="#15803d" />
+        <ResumenCard titulo="Riesgo alto" cantidad={totales.alto} colorFondo="rgba(239, 68, 68, 0.08)" colorTexto="#b91c1c" />
+        <ResumenCard titulo="Riesgo medio" cantidad={totales.medio} colorFondo="rgba(249, 115, 22, 0.08)" colorTexto="#c2410c" />
+        <ResumenCard titulo="Riesgo bajo" cantidad={totales.bajo} colorFondo="rgba(34, 197, 94, 0.1)" colorTexto="#15803d" />
       </section>
 
-      <section className="surface-card">
-        <header className="surface-header">
-          <h2 className="section-title">Resultados</h2>
-          {isFetching && <span className="surface-header__meta">Cargando...</span>}
+      <section className="surface">
+        <header className="section-header">
+          <div>
+            <h2 className="section-header__title">Resultados</h2>
+            {isFetching && <span className="section-header__meta">Actualizando información...</span>}
+          </div>
         </header>
-        <div className="table-wrapper table-scroll">
-          <table className="styled-table">
+        <div className="table-scroll">
+          <table className="table table--lg">
             <thead>
               <tr>
                 <th>Código</th>
@@ -104,7 +87,7 @@ export function StudentsPage() {
               </tr>
             </thead>
             <tbody>
-              {estudiantes?.map((est: StudentItem) => (
+              {estudiantes?.map((est) => (
                 <tr key={est.id_estudiante}>
                   <td>{est.codigo_alumno ?? "-"}</td>
                   <td>{est.dni ?? "-"}</td>
@@ -120,9 +103,7 @@ export function StudentsPage() {
           </table>
         </div>
         {estudiantes && estudiantes.length === 0 && (
-          <p className="page-description empty-state">
-            No se encontraron estudiantes con los filtros seleccionados.
-          </p>
+          <p className="empty-message">No se encontraron estudiantes con los filtros seleccionados.</p>
         )}
       </section>
     </div>
@@ -130,9 +111,9 @@ export function StudentsPage() {
 }
 
 function NivelEtiqueta({ nivel }: { nivel: string }) {
-  const key = (nivel ?? "").toLowerCase();
-  const variant = nivelesColores[key] ?? "neutral";
-  return <span className={`badge badge--${variant}`}>{nivel}</span>;
+  const key = nivel.toLowerCase();
+  const variant = nivelesClases[key] ?? "";
+  return <span className={`badge ${variant}`}>{nivel}</span>;
 }
 
 function calcularTotales(estudiantes: StudentItem[]) {
@@ -149,21 +130,20 @@ function calcularTotales(estudiantes: StudentItem[]) {
   );
 }
 
-function ResumenCard({ titulo, cantidad, colorFondo = "#eef2ff", colorTexto = "#3730a3" }: { titulo: string; cantidad: number; colorFondo?: string; colorTexto?: string }) {
-  const style = { "--metric-bg": colorFondo, "--metric-color": colorTexto } as CSSProperties;
+function ResumenCard({ titulo, cantidad, colorFondo = "rgba(37, 99, 235, 0.08)", colorTexto = "#1d4ed8" }: { titulo: string; cantidad: number; colorFondo?: string; colorTexto?: string }) {
   return (
-    <article className="metric-card" style={style}>
-      <span className="metric-card__label">{titulo}</span>
-      <strong className="metric-card__value">{cantidad}</strong>
+    <article className="summary-card" style={{ background: colorFondo, color: colorTexto }}>
+      <span className="summary-card__title">{titulo}</span>
+      <strong className="summary-card__value">{cantidad}</strong>
     </article>
   );
 }
 
 function FiltroSelect({ label, value, onChange, opciones }: { label: string; value: string | number; onChange: (value: string) => void; opciones: Array<{ value: string; label: string }> }) {
   return (
-    <label className="form-field">
-      <span className="form-field__label">{label}</span>
-      <select value={value} onChange={(e) => onChange(e.target.value)} className="select">
+    <label className="field filters-panel__column">
+      <span className="field__label">{label}</span>
+      <select value={value} onChange={(e) => onChange(e.target.value)} className="field__control">
         {opciones.map((opcion) => (
           <option key={opcion.value} value={opcion.value}>
             {opcion.label}

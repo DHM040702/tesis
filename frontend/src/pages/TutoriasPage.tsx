@@ -102,145 +102,121 @@ export function TutoriasPage() {
   });
 
   return (
+    <div className="page page--columns">
+      <section className="surface">
+        <header className="page__header page__header--compact">
+          <h1 className="page__title">Registro de tutorías</h1>
+          <p className="page__subtitle">Complete el formulario para registrar la atención brindada al estudiante.</p>
+        </header>
+        <form onSubmit={onSubmit} className="form-grid">
+          <label className="field">
+            <span className="field__label">Periodo académico</span>
+            <select {...register("id_periodo", { valueAsNumber: true, required: true })} className="field__control">
+              <option value="">Seleccione un periodo</option>
+              {periodos?.map((periodo) => (
+                <option key={periodo.id_periodo} value={periodo.id_periodo}>
+                  {periodo.nombre}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span className="field__label">Estudiante asignado</span>
+            <select {...register("id_estudiante", { valueAsNumber: true, required: true })} className="field__control">
+              <option value="">Seleccione un estudiante</option>
+              {asignados?.map((est) => (
+                <option key={est.id_estudiante} value={est.id_estudiante}>
+                  {formatearNombreEstudiante(est)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span className="field__label">Fecha y hora</span>
+            <input type="datetime-local" {...register("fecha_hora")} className="field__control" />
+          </label>
+          <label className="field">
+            <span className="field__label">Modalidad</span>
+            <select {...register("id_modalidad", { valueAsNumber: true, required: true })} className="field__control">
+              {opcionesModalidad.map((opcion) => (
+                <option key={opcion.value} value={opcion.value}>
+                  {opcion.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field field--full">
+            <span className="field__label">Tema tratado</span>
+            <input type="text" {...register("tema", { required: true, minLength: 3 })} className="field__control" />
+          </label>
+          <label className="field field--full">
+            <span className="field__label">Observaciones</span>
+            <textarea {...register("observaciones")} className="field__control field__control--textarea" rows={3} />
+          </label>
+          <label className="field field--full">
+            <span className="field__label">Seguimiento sugerido</span>
+            <textarea {...register("seguimiento")} className="field__control field__control--textarea" rows={3} />
+          </label>
 
-    <div className="page">
-      <header className="page-header">
-        <h1 className="page-title">Gestión de tutorías</h1>
-        <p className="page-description">
-          Coordine y documente las sesiones realizadas con los estudiantes asignados a su cuidado.
-        </p>
-      </header>
+          {mensaje && <div className="alert alert--success field--full">{mensaje}</div>}
+          {error && <div className="alert alert--error field--full">{error}</div>}
 
-      <div className="page-grid">
-        <section className="surface-card">
-          <header className="surface-header">
-            <div>
-              <h2 className="section-title">Registro de tutorías</h2>
-              <p className="section-subtitle">Complete el formulario para registrar la atención brindada al estudiante.</p>
-            </div>
-          </header>
-          <form onSubmit={onSubmit} className="form-grid form-grid--two">
-            <label className="form-field">
-              <span className="form-field__label">Periodo académico</span>
-              <select
-                {...register("id_periodo", { valueAsNumber: true, required: true })}
-                className="select"
-              >
-                <option value="">Seleccione un periodo</option>
-                {periodos?.map((periodo: { id_periodo: number; nombre: string }) => (
-                  <option key={periodo.id_periodo} value={periodo.id_periodo}>
-                    {periodo.nombre}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="form-field">
-              <span className="form-field__label">Estudiante asignado</span>
-              <select
-                {...register("id_estudiante", { valueAsNumber: true, required: true })}
-                className="select"
-              >
-                <option value="">Seleccione un estudiante</option>
-                {asignados?.map((est: StudentItem & { estudiante?: string; periodo?: string }) => (
-                  <option key={est.id_estudiante} value={est.id_estudiante}>
-                    {formatearNombreEstudiante(est)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            
-            <label className="form-field">
-              <span className="form-field__label">Fecha y hora</span>
-              <input type="datetime-local" {...register("fecha_hora")} className="input" />
-            </label>
-            <label className="form-field">
-              <span className="form-field__label">Modalidad</span>
-              <select {...register("id_modalidad", { valueAsNumber: true, required: true })} className="select">
-                {opcionesModalidad.map((opcion) => (
-                  <option key={opcion.value} value={opcion.value}>
-                    {opcion.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="form-field form-field--full">
-              <span className="form-field__label">Tema tratado</span>
-              <input type="text" {...register("tema", { required: true, minLength: 3 })} className="input" />
-            </label>
-            <label className="form-field form-field--full">
-              <span className="form-field__label">Observaciones</span>
-              <textarea {...register("observaciones")} className="textarea" rows={3} />
-            </label>
-            <label className="form-field form-field--full">
-              <span className="form-field__label">Seguimiento sugerido</span>
-              <textarea {...register("seguimiento")} className="textarea" rows={3} />
-            </label>
-          
-
-            {mensaje && <div className="status-message status-message--success form-field--full">{mensaje}</div>}
-            {error && <div className="status-message status-message--error form-field--full">{error}</div>}
-
-            <button type="submit" disabled={enviando} className="button button--primary form-field--full">
+          <div className="form-actions field--full">
+            <button type="submit" disabled={enviando} className="button button--primary">
               {enviando ? "Guardando..." : "Registrar tutoría"}
             </button>
-          </form>
-        </section>
-
-        <section className="surface-card">
-          <header className="surface-header">
-            <div>
-              <h2 className="section-title">Historial reciente</h2>
-              <p className="section-subtitle">Filtre por periodo y estudiante para visualizar las sesiones registradas.</p>
-            </div>
-          </header>
-          <div className="table-wrapper table-scroll">
-            <table className="styled-table">
-              <thead>
-                <tr>
-                  <th>Fecha</th>
-                  <th>Estudiante</th>
-                  <th>Tema</th>
-                  <th>Periodo</th>
-                  <th>Seguimiento</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tutorias?.map((tutoria: ApiTutoriasResponse) => (
-                  <FilaTutoria key={tutoria.id_tutoria} tutoria={tutoria} />
-                ))}
-              </tbody>
-            </table>
           </div>
-          {tutorias && tutorias.length === 0 && (
-            <p className="empty-state">Registre una tutoría para visualizarla aquí.</p>
-          )}
-        </section>
-      </div>
+        </form>
+      </section>
+
+      <section className="surface">
+        <header className="section-header">
+          <div>
+            <h2 className="section-header__title">Historial reciente</h2>
+            <p className="section-header__subtitle">Filtre por periodo y estudiante para visualizar las sesiones registradas.</p>
+          </div>
+        </header>
+        <div className="table-scroll">
+          <table className="table table--sm">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Estudiante</th>
+                <th>Tema</th>
+                <th>Periodo</th>
+                <th>Seguimiento</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tutorias?.map((tutoria) => (
+                <FilaTutoria key={tutoria.id_tutoria} tutoria={tutoria} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {tutorias && tutorias.length === 0 && (
+          <p className="empty-message">Registre una tutoría para visualizarla aquí.</p>
+        )}
+      </section>
     </div>
   );
 }
 
-function formatearNombreEstudiante(estudiante: StudentItem | TutorAssignmentItem) {
-  if ("estudiante" in estudiante && estudiante.estudiante) {
-    return estudiante.estudiante;
+type AsignadoEstudiante = StudentItem & { estudiante?: string | null };
+
+function formatearNombreEstudiante(estudiante: AsignadoEstudiante) {
+  if (estudiante.estudiante) {
+    const nombre = estudiante.estudiante.trim();
+    return `${estudiante.dni ?? ""}${nombre ? ` · ${nombre}` : ""}`;
   }
-  if (
-    "apellido_paterno" in estudiante ||
-    "apellido_materno" in estudiante ||
-    "nombres" in estudiante
-  ) {
-    const partes = [
-      "apellido_paterno" in estudiante ? estudiante.apellido_paterno : undefined,
-      "apellido_materno" in estudiante ? estudiante.apellido_materno : undefined,
-      "nombres" in estudiante ? estudiante.nombres : undefined
-    ]
-      .filter(Boolean)
-      .join(" ");
-    const prefijo = estudiante.dni ? `${estudiante.dni} · ` : "";
-    return partes ? `${prefijo}${partes}` : estudiante.dni ?? "Sin nombre";
-  }
-  return estudiante.dni ?? "Sin nombre";
+
+  const partes = [estudiante.apellido_paterno, estudiante.apellido_materno, estudiante.nombres]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  const nombreVisible = partes || "Sin nombre";
+  const prefijo = estudiante.dni ? `${estudiante.dni} · ` : "";
+  return `${prefijo}${nombreVisible}`;
 }
 
 function FilaTutoria({ tutoria }: { tutoria: ApiTutoriasResponse }) {
@@ -254,55 +230,3 @@ function FilaTutoria({ tutoria }: { tutoria: ApiTutoriasResponse }) {
     </tr>
   );
 }
-
-const panelStyle: React.CSSProperties = {
-  background: "#fff",
-  padding: "24px",
-  borderRadius: "12px",
-  boxShadow: "0 12px 24px rgba(15, 23, 42, 0.05)",
-  display: "flex",
-  flexDirection: "column",
-  gap: "16px"
-};
-
-const labelStyle: React.CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "6px",
-  fontSize: "0.95rem"
-};
-
-const selectStyle: React.CSSProperties = {
-  padding: "10px 12px",
-  borderRadius: "8px",
-  border: "1px solid #d1d5db"
-};
-
-const inputStyle: React.CSSProperties = {
-  padding: "10px 12px",
-  borderRadius: "8px",
-  border: "1px solid #d1d5db"
-};
-
-const textareaStyle: React.CSSProperties = {
-  padding: "12px",
-  borderRadius: "8px",
-  border: "1px solid #d1d5db",
-  resize: "vertical"
-};
-
-const submitButton: React.CSSProperties = {
-  padding: "12px",
-  borderRadius: "10px",
-  border: "none",
-  background: "#2563eb",
-  color: "#fff",
-  fontWeight: 600,
-  cursor: "pointer"
-};
-
-const tablaStyle: React.CSSProperties = {
-  width: "100%",
-  borderCollapse: "collapse",
-  minWidth: "680px"
-};

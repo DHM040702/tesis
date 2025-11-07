@@ -17,33 +17,45 @@ export function Layout() {
 
   return (
     <div className="app-shell">
-      <aside className="app-sidebar">
-        <Link to="/" className="sidebar-brand">
-          SIA UNASAM
+      <aside className="sidebar">
+        <Link to="/" className="sidebar__brand">
+          <span className="sidebar__brand-mark">SIA</span>
+          <span className="sidebar__brand-text">Sistema Integral de Acompañamiento</span>
         </Link>
-        <nav className="sidebar-nav">
-          <NavLink to="/" end className={navLinkClasses}>
-            Resumen de riesgo
+        <nav className="sidebar__nav">
+          <NavLink to="/" end className={({ isActive }) => linkClass(isActive)}>
+            <span className="sidebar__link-indicator" aria-hidden />
+            <span>Resumen de riesgo</span>
           </NavLink>
-          <NavLink to="/estudiantes" className={navLinkClasses}>
-            Estudiantes
+          <NavLink to="/estudiantes" className={({ isActive }) => linkClass(isActive)}>
+            <span className="sidebar__link-indicator" aria-hidden />
+            <span>Estudiantes</span>
           </NavLink>
-          <NavLink to="/tutorias" className={navLinkClasses}>
-            Tutorías
+          <NavLink to="/tutorias" className={({ isActive }) => linkClass(isActive)}>
+            <span className="sidebar__link-indicator" aria-hidden />
+            <span>Tutorías</span>
           </NavLink>
         </nav>
-        <div className="sidebar-footer">
-          <strong>{user?.persona?.nombres}</strong>
-          <span>{user?.correo}</span>
-          <span>Roles: {user?.roles?.join(", ")}</span>
+        <div className="sidebar__footer">
+          <div className="sidebar__profile">
+            <span className="sidebar__profile-label">Usuario</span>
+            <strong className="sidebar__profile-name">{user?.persona?.nombres ?? "Sin nombre"}</strong>
+            <span className="sidebar__profile-email">{user?.correo}</span>
+            <span className="sidebar__profile-roles">Roles: {user?.roles?.join(", ")}</span>
+          </div>
+          <button type="button" onClick={handleLogout} className="button button--ghost">
+            Cerrar sesión
+          </button>
         </div>
-        <button type="button" onClick={handleLogout} className="button button--ghost">
-          Cerrar sesión
-        </button>
       </aside>
-      <main className="app-main">
-        <Outlet />
+       <main className="app-content">
+        <div className="app-content__inner">
+          <Outlet />
+        </div>
       </main>
     </div>
   );
+}
+function linkClass(isActive: boolean) {
+  return `sidebar__link${isActive ? " is-active" : ""}`;
 }
