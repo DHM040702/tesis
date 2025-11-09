@@ -1,37 +1,47 @@
+import { useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-
-type NavLinkState = { isActive: boolean; isPending: boolean; isTransitioning: boolean };
-
-const navLinkClasses = ({ isActive }: NavLinkState) =>
-  ["app-nav-link", isActive ? "is-active" : ""].filter(Boolean).join(" ");
 
 export function Layout() {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = async () => {
     await logout();
     navigate("/login", { replace: true });
   };
 
+  const toggleSidebar = () => setSidebarOpen((prev) => !prev);
+  const closeSidebar = () => setSidebarOpen(false);
+
+  const welcomeName = user?.persona?.nombres ?? "Usuario";
+  const today = new Date().toLocaleDateString("es-PE", {
+    weekday: "long",
+    day: "numeric",
+    month: "long"
+  });
+
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <Link to="/" className="sidebar__brand">
+    <div className={`app-shell${sidebarOpen ? " is-sidebar-open" : ""}`}>
+      <aside className={`sidebar${sidebarOpen ? " is-open" : ""}`}>
+        <button type="button" className="sidebar__close" onClick={toggleSidebar} aria-label="Cerrar menú lateral">
+          ✕
+        </button>
+        <Link to="/" className="sidebar__brand" onClick={closeSidebar}>
           <span className="sidebar__brand-mark">SIA</span>
           <span className="sidebar__brand-text">Sistema Integral de Acompañamiento</span>
         </Link>
         <nav className="sidebar__nav">
-          <NavLink to="/" end className={({ isActive }) => linkClass(isActive)}>
+          <NavLink to="/" end className={({ isActive }) => linkClass(isActive)} onClick={closeSidebar}>
             <span className="sidebar__link-indicator" aria-hidden />
             <span>Resumen de riesgo</span>
           </NavLink>
-          <NavLink to="/estudiantes" className={({ isActive }) => linkClass(isActive)}>
+          <NavLink to="/estudiantes" className={({ isActive }) => linkClass(isActive)} onClick={closeSidebar}>
             <span className="sidebar__link-indicator" aria-hidden />
             <span>Estudiantes</span>
           </NavLink>
-          <NavLink to="/tutorias" className={({ isActive }) => linkClass(isActive)}>
+          <NavLink to="/tutorias" className={({ isActive }) => linkClass(isActive)} onClick={closeSidebar}>
             <span className="sidebar__link-indicator" aria-hidden />
             <span>Tutorías</span>
           </NavLink>
@@ -48,7 +58,28 @@ export function Layout() {
           </button>
         </div>
       </aside>
-       <main className="app-content">
+      {sidebarOpen && <div className="sidebar__overlay" onClick={closeSidebar} aria-hidden />}
+      <main className="app-content">
+        <header className="app-topbar">
+          <div className="app-topbar__meta">
+            <button type="button" className="app-topbar__menu" onClick={toggleSidebar} aria-label="Abrir menú">
+              ☰
+            </button>
+            <p className="app-topbar__eyebrow">Panel principal</p>
+            <h1 className="app-topbar__title">{welcomeName}</h1>
+            <span className="app-topbar__date">{today}</span>
+          </div>
+          <div className="app-topbar__actions">
+            <button type="button" className="button button--ghost">
+              Descargar reporte
+            </button>
+            <button type="button" className="button button--primary">
+              Registrar tutoría
+            </button>
+          </div>
+        </header>
+        <br></br>
+        <br></br>
         <div className="app-content__inner">
           <Outlet />
         </div>
@@ -56,6 +87,7 @@ export function Layout() {
     </div>
   );
 }
+
 function linkClass(isActive: boolean) {
   return `sidebar__link${isActive ? " is-active" : ""}`;
 }

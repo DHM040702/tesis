@@ -7,7 +7,7 @@ import { ApiTutoriasResponse, StudentItem, TutorAssignmentItem } from "../types"
 const opcionesModalidad = [
   { value: 1, label: "Presencial" },
   { value: 2, label: "Virtual" },
-  { value: 3, label: "Telefónica" }
+  { value: 3, label: "Telef��nica" }
 ];
 
 type TutoriaForm = {
@@ -37,6 +37,9 @@ export function TutoriasPage() {
 
   const rawPeriodo = watch("id_periodo");
   const rawEstudiante = watch("id_estudiante");
+  const modalidadActual = watch("id_modalidad") ?? 1;
+  const formCardClass = `surface form-card form-card--mod-${modalidadActual}`;
+  const modalidadNombre = opcionesModalidad.find((opcion) => opcion.value === modalidadActual)?.label ?? "Presencial";
   const periodoSeleccionado = Number.isFinite(rawPeriodo) ? (rawPeriodo as number) : undefined;
   const estudianteSeleccionado = Number.isFinite(rawEstudiante) ? (rawEstudiante as number) : undefined;
 
@@ -83,9 +86,9 @@ export function TutoriasPage() {
         observaciones: values.observaciones || undefined,
         seguimiento: values.seguimiento || undefined
       });
-      setMensaje("Tutoría registrada correctamente");
+      setMensaje("Tutor��a registrada correctamente");
       reset({
-        id_modalidad: 1,
+        id_modalidad: values.id_modalidad,
         tema: "",
         observaciones: "",
         seguimiento: "",
@@ -103,14 +106,15 @@ export function TutoriasPage() {
 
   return (
     <div className="page page--columns">
-      <section className="surface">
+      <section className={formCardClass}>
         <header className="page__header page__header--compact">
-          <h1 className="page__title">Registro de tutorías</h1>
-          <p className="page__subtitle">Complete el formulario para registrar la atención brindada al estudiante.</p>
+          <h1 className="page__title">Registro de tutor��as</h1>
+          <p className="page__subtitle">Complete el formulario para registrar la atenci��n brindada al estudiante.</p>
+          <span className="section-header__meta">Modalidad seleccionada: {modalidadNombre}</span>
         </header>
         <form onSubmit={onSubmit} className="form-grid">
           <label className="field">
-            <span className="field__label">Periodo académico</span>
+            <span className="field__label">Periodo acadǸmico</span>
             <select {...register("id_periodo", { valueAsNumber: true, required: true })} className="field__control">
               <option value="">Seleccione un periodo</option>
               {periodos?.map((periodo) => (
@@ -163,7 +167,7 @@ export function TutoriasPage() {
 
           <div className="form-actions field--full">
             <button type="submit" disabled={enviando} className="button button--primary">
-              {enviando ? "Guardando..." : "Registrar tutoría"}
+              {enviando ? "Guardando..." : "Registrar tutor��a"}
             </button>
           </div>
         </form>
@@ -176,27 +180,12 @@ export function TutoriasPage() {
             <p className="section-header__subtitle">Filtre por periodo y estudiante para visualizar las sesiones registradas.</p>
           </div>
         </header>
-        <div className="table-scroll">
-          <table className="table table--sm">
-            <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Estudiante</th>
-                <th>Tema</th>
-                <th>Periodo</th>
-                <th>Seguimiento</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tutorias?.map((tutoria) => (
-                <FilaTutoria key={tutoria.id_tutoria} tutoria={tutoria} />
-              ))}
-            </tbody>
-          </table>
+        <div className="timeline">
+          {tutorias?.map((tutoria) => (
+            <TimelineItem key={tutoria.id_tutoria} tutoria={tutoria} />
+          ))}
         </div>
-        {tutorias && tutorias.length === 0 && (
-          <p className="empty-message">Registre una tutoría para visualizarla aquí.</p>
-        )}
+        {tutorias && tutorias.length === 0 && <p className="empty-message">Registre una tutor��a para visualizarla aqu��.</p>}
       </section>
     </div>
   );
@@ -207,7 +196,7 @@ type AsignadoEstudiante = StudentItem & { estudiante?: string | null };
 function formatearNombreEstudiante(estudiante: AsignadoEstudiante) {
   if (estudiante.estudiante) {
     const nombre = estudiante.estudiante.trim();
-    return `${estudiante.dni ?? ""}${nombre ? ` · ${nombre}` : ""}`;
+    return `${estudiante.dni ?? ""}${nombre ? ` �� ${nombre}` : ""}`;
   }
 
   const partes = [estudiante.apellido_paterno, estudiante.apellido_materno, estudiante.nombres]
@@ -215,18 +204,41 @@ function formatearNombreEstudiante(estudiante: AsignadoEstudiante) {
     .join(" ")
     .trim();
   const nombreVisible = partes || "Sin nombre";
-  const prefijo = estudiante.dni ? `${estudiante.dni} · ` : "";
+  const prefijo = estudiante.dni ? `${estudiante.dni} �� ` : "";
   return `${prefijo}${nombreVisible}`;
 }
 
-function FilaTutoria({ tutoria }: { tutoria: ApiTutoriasResponse }) {
+function TimelineItem({ tutoria }: { tutoria: ApiTutoriasResponse }) {
   return (
-    <tr>
-      <td>{new Date(tutoria.fecha_hora).toLocaleString()}</td>
-      <td>{tutoria.estudiante}</td>
-      <td>{tutoria.tema}</td>
-      <td>{tutoria.periodo}</td>
-      <td>{tutoria.seguimiento ?? "-"}</td>
-    </tr>
+    <article className="timeline__item">
+      <h3 className="timeline__title">{tutoria.tema}</h3>
+      <div className="timeline__meta">
+        <span>{formatearFecha(tutoria.fecha_hora)}</span>
+        <span>{tutoria.estudiante}</span>
+        <span>{tutoria.periodo}</span>
+        <span>Tutor: {tutoria.tutor}</span>
+      </div>
+      <p className="timeline__body">{tutoria.observaciones ?? "Sin observaciones registradas."}</p>
+      {tutoria.seguimiento && (
+        <p className="timeline__body">
+          <strong>Seguimiento:</strong> {tutoria.seguimiento}
+        </p>
+      )}
+    </article>
   );
+}
+
+function formatearFecha(fecha?: string) {
+  if (!fecha) return "-";
+  const date = new Date(fecha);
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
+  return date.toLocaleString("es-PE", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
 }

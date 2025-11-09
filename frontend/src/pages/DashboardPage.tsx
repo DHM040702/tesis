@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import { apiClient } from "../api/client";
@@ -8,6 +8,8 @@ type Filters = {
   periodo?: number;
   programa?: number;
 };
+
+type RiskStats = ReturnType<typeof calcularEstadisticas>;
 
 export function DashboardPage() {
   const [filters, setFilters] = useState<Filters>({});
@@ -37,6 +39,32 @@ export function DashboardPage() {
   });
 
   const stats = useMemo(() => calcularEstadisticas(resumen ?? []), [resumen]);
+  const canDownload = Boolean(resumen?.length);
+
+  const handleDownload = useCallback(() => {
+    if (!resumen?.length) return;
+    const header = ["dni", "estudiante", "programa", "puntaje", "nivel", "generado_en"];
+    const rows = resumen.map((item) =>
+      [
+        item.dni ?? "",
+        item.nombre_visible ?? "",
+        item.programa ?? "",
+        formatPuntaje(item.puntaje),
+        item.nivel ?? "",
+        dayjs(item.creado_en).format("YYYY-MM-DD HH:mm")
+      ]
+        .map((value) => `"${String(value).replace(/"/g, '""')}"`)
+        .join(",")
+    );
+    const csv = [header.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `resumen_riesgo_${dayjs().format("YYYYMMDD_HHmm")}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }, [resumen]);
 
   return (
     <div className="page">
@@ -45,10 +73,37 @@ export function DashboardPage() {
         <p className="page__subtitle">Visualice los puntajes de riesgo generados por el modelo predictivo.</p>
       </header>
 
+      <section className="surface hero-card">
+        <div className="hero-card__stats">
+          <div>
+            <p className="page__subtitle">Seguimiento del periodo</p>
+            <h2 className="hero-card__headline">{stats.total} estudiantes monitoreados</h2>
+            <p className="hero-card__copy">
+              Datos actualizados {dayjs().format("DD MMM YYYY, HH:mm")} · priorice cohortes de alto riesgo.
+            </p>
+          </div>
+          <div className="hero-card__chart">
+            <RiskDonut stats={stats} />
+          </div>
+        </div>
+        <div className="hero-card__actions">
+          <button type="button" className="button button--ghost" onClick={handleDownload} disabled={!canDownload}>
+            Descargar CSV
+          </button>
+          <button
+            type="button"
+            className="button button--primary"
+            onClick={() => document.getElementById("detalle-riesgo")?.scrollIntoView({ behavior: "smooth" })}
+          >
+            Ver detalle de cohortes
+          </button>
+        </div>
+      </section>
+
       <section className="surface filters-panel">
         <div className="filters-panel__column">
           <label className="field">
-            <span className="field__label">Periodo académico</span>
+            <span className="field__label">Periodo acadǸmico</span>
             <select
               value={filters.periodo ?? ""}
               onChange={(e) => setFilters((prev) => ({ ...prev, periodo: Number(e.target.value) }))}
@@ -67,7 +122,7 @@ export function DashboardPage() {
         </div>
         <div className="filters-panel__column">
           <label className="field">
-            <span className="field__label">Programa académico</span>
+            <span className="field__label">Programa acadǸmico</span>
             <select
               value={filters.programa ?? ""}
               onChange={(e) =>
@@ -112,7 +167,7 @@ export function DashboardPage() {
           </span>
         </header>
         <div className="table-scroll">
-          <table className="table table--md">
+          <table id="detalle-riesgo" className="table table--md table--responsive">
             <thead>
               <tr>
                 <th>Documento</th>
@@ -130,9 +185,7 @@ export function DashboardPage() {
             </tbody>
           </table>
         </div>
-        {resumen?.length === 0 && (
-          <p className="empty-message">No hay resultados para los filtros seleccionados.</p>
-        )}
+        {resumen?.length === 0 && <p className="empty-message">No hay resultados para los filtros seleccionados.</p>}
       </section>
     </div>
   );
@@ -161,14 +214,14 @@ function StatCard({ titulo, valor, descripcion, color = "#2563eb" }: { titulo: s
 function RowResumen({ item }: { item: RiskSummaryItem }) {
   return (
     <tr>
-      <td>{item.dni}</td>
-      <td>{item.nombre_visible}</td>
-      <td>{item.programa}</td>
-      <td>{formatPuntaje(item.puntaje)}</td>
-      <td>
+      <td data-label="Documento">{item.dni}</td>
+      <td data-label="Estudiante">{item.nombre_visible}</td>
+      <td data-label="Programa">{item.programa}</td>
+      <td data-label="Puntaje">{formatPuntaje(item.puntaje)}</td>
+      <td data-label="Nivel">
         <NivelBadge nivel={item.nivel} />
       </td>
-      <td>{dayjs(item.creado_en).format("DD/MM/YYYY HH:mm")}</td>
+      <td data-label="Generado">{dayjs(item.creado_en).format("DD/MM/YYYY HH:mm")}</td>
     </tr>
   );
 }
@@ -198,4 +251,41 @@ function formatPuntaje(puntaje: RiskSummaryItem["puntaje"]) {
   }
 
   return "N/A";
+}
+
+function RiskDonut({ stats }: { stats: RiskStats }) {
+  const total = stats.total || 0;
+  const distribution = [
+    { label: "Riesgo alto", value: stats.altos, color: "#ef4444" },
+    { label: "Riesgo medio", value: stats.medios, color: "#f97316" },
+    { label: "Riesgo bajo", value: stats.bajos, color: "#16a34a" }
+  ];
+
+  const segments = total
+    ? distribution.reduce<{ start: number; end: number; color: string }[]>((acc, segment) => {
+        const start = acc.length ? acc[acc.length - 1].end : 0;
+        const sweep = (segment.value / total) * 100;
+        const end = Math.min(100, start + sweep);
+        acc.push({ start, end, color: segment.color });
+        return acc;
+      }, [])
+    : [];
+
+  const gradient = total
+    ? `conic-gradient(${segments.map((segment) => `${segment.color} ${segment.start}% ${segment.end}%`).join(", ")})`
+    : "conic-gradient(#cbd5f5 0 100%)";
+
+  return (
+    <div className="risk-donut-wrapper">
+      <div className="risk-donut" data-total={total} style={{ background: gradient }} />
+      <div className="risk-donut__legend">
+        {distribution.map((segment) => (
+          <span key={segment.label} className="risk-donut__legend-item">
+            <span className="risk-donut__swatch" style={{ background: segment.color }} />
+            {segment.label}: {segment.value}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
 }

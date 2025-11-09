@@ -9,6 +9,12 @@ const nivelesClases: Record<string, string> = {
   bajo: "badge--success"
 };
 
+const nivelIconos: Record<string, string> = {
+  alto: "⚠",
+  medio: "△",
+  bajo: "✓"
+};
+
 type Filters = {
   programa?: number;
   periodo?: number;
@@ -101,7 +107,7 @@ export function StudentsPage() {
           </div>
         </header>
         <div className="table-scroll">
-          <table className="table table--lg">
+          <table className="table table--lg table--responsive">
             <thead>
               <tr>
                 <th>Código</th>
@@ -115,12 +121,12 @@ export function StudentsPage() {
             <tbody>
               {estudiantes?.items.map((est) => (
                 <tr key={est.id_estudiante}>
-                  <td>{est.codigo_alumno ?? "-"}</td>
-                  <td>{est.dni ?? "-"}</td>
-                  <td>{`${est.apellido_paterno ?? ""} ${est.apellido_materno ?? ""}, ${est.nombres ?? ""}`}</td>
-                  <td>{est.programa ?? "-"}</td>
-                  <td>{formatearPuntaje(est.puntaje)}</td>
-                  <td>
+                  <td data-label="C��digo">{est.codigo_alumno ?? "-"}</td>
+                  <td data-label="Documento">{est.dni ?? "-"}</td>
+                  <td data-label="Estudiante">{`${est.apellido_paterno ?? ""} ${est.apellido_materno ?? ""}, ${est.nombres ?? ""}`}</td>
+                  <td data-label="Programa">{est.programa ?? "-"}</td>
+                  <td data-label="Puntaje">{formatearPuntaje(est.puntaje)}</td>
+                  <td data-label="Nivel">
                     <NivelEtiqueta nivel={est.nivel ?? "Sin dato"} />
                   </td>
                 </tr>
@@ -226,7 +232,13 @@ function formatearPuntaje(valor: StudentItem["puntaje"]) {
 function NivelEtiqueta({ nivel }: { nivel: string }) {
   const key = nivel.toLowerCase();
   const variant = nivelesClases[key] ?? "";
-  return <span className={`badge ${variant}`}>{nivel}</span>;
+  const icon = nivelIconos[key] ?? "•";
+  return (
+    <span className={`badge ${variant}`}>
+      <span aria-hidden>{icon}</span>
+      <span>{nivel}</span>
+    </span>
+  );
 }
 
 function calcularTotales(estudiantes: StudentItem[]) {
