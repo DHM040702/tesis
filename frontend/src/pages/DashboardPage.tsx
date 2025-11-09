@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+
+import { useEffect, useMemo, useState } from "react";
+>>>>>>> theirs
 import { useQuery } from "@tanstack/react-query";
-import dayjs from "dayjs";
 import { apiClient } from "../api/client";
 import { RiskSummaryItem } from "../types";
+import dayjs from "dayjs";
 
 type Filters = {
   periodo?: number;
@@ -67,47 +69,32 @@ export function DashboardPage() {
   }, [resumen]);
 
   return (
-    <div className="page">
-      <header className="page__header">
-        <h1 className="page__title">Resumen de riesgo estudiantil</h1>
-        <p className="page__subtitle">Visualice los puntajes de riesgo generados por el modelo predictivo.</p>
+    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+      <header>
+        <h1 style={{ margin: 0, color: "#111827" }}>Resumen de riesgo estudiantil</h1>
+        <p style={{ color: "#4b5563", marginTop: "8px" }}>
+          Visualice los puntajes de riesgo generados por el modelo predictivo.
+        </p>
       </header>
 
-      <section className="surface hero-card">
-        <div className="hero-card__stats">
-          <div>
-            <p className="page__subtitle">Seguimiento del periodo</p>
-            <h2 className="hero-card__headline">{stats.total} estudiantes monitoreados</h2>
-            <p className="hero-card__copy">
-              Datos actualizados {dayjs().format("DD MMM YYYY, HH:mm")} · priorice cohortes de alto riesgo.
-            </p>
-          </div>
-          <div className="hero-card__chart">
-            <RiskDonut stats={stats} />
-          </div>
-        </div>
-        <div className="hero-card__actions">
-          <button type="button" className="button button--ghost" onClick={handleDownload} disabled={!canDownload}>
-            Descargar CSV
-          </button>
-          <button
-            type="button"
-            className="button button--primary"
-            onClick={() => document.getElementById("detalle-riesgo")?.scrollIntoView({ behavior: "smooth" })}
-          >
-            Ver detalle de cohortes
-          </button>
-        </div>
-      </section>
-
-      <section className="surface filters-panel">
-        <div className="filters-panel__column">
-          <label className="field">
-            <span className="field__label">Periodo acadǸmico</span>
+      <section
+        style={{
+          display: "flex",
+          gap: "16px",
+          flexWrap: "wrap",
+          background: "#fff",
+          padding: "20px",
+          borderRadius: "12px",
+          boxShadow: "0 12px 24px rgba(15, 23, 42, 0.05)"
+        }}
+      >
+        <div style={{ minWidth: "220px", flex: 1 }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <span>Periodo académico</span>
             <select
               value={filters.periodo ?? ""}
               onChange={(e) => setFilters((prev) => ({ ...prev, periodo: Number(e.target.value) }))}
-              className="field__control"
+              style={selectStyle}
             >
               <option value="" disabled>
                 Seleccione un periodo
@@ -120,9 +107,9 @@ export function DashboardPage() {
             </select>
           </label>
         </div>
-        <div className="filters-panel__column">
-          <label className="field">
-            <span className="field__label">Programa acadǸmico</span>
+        <div style={{ minWidth: "220px", flex: 1 }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <span>Programa académico</span>
             <select
               value={filters.programa ?? ""}
               onChange={(e) =>
@@ -131,7 +118,7 @@ export function DashboardPage() {
                   programa: e.target.value ? Number(e.target.value) : undefined
                 }))
               }
-              className="field__control"
+              style={selectStyle}
             >
               <option value="">Todos</option>
               {programas?.map((programa) => (
@@ -142,32 +129,46 @@ export function DashboardPage() {
             </select>
           </label>
         </div>
-        <button type="button" onClick={() => refetch()} className="button button--primary filters-panel__action">
+        <button
+          type="button"
+          onClick={() => refetch()}
+          style={buttonStyle}
+        >
           {isFetching ? "Actualizando..." : "Actualizar"}
         </button>
       </section>
 
-      <section className="stats-grid">
+      <section style={{ display: "grid", gap: "16px", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
         <StatCard titulo="Estudiantes evaluados" valor={stats.total.toString()} descripcion="Total de registros con puntaje" />
         <StatCard titulo="Riesgo alto" valor={stats.altos.toString()} descripcion="Estudiantes clasificados como alto riesgo" color="#ef4444" />
         <StatCard titulo="Riesgo medio" valor={stats.medios.toString()} descripcion="Estudiantes clasificados como riesgo medio" color="#f97316" />
-        <StatCard titulo="Riesgo bajo" valor={stats.bajos.toString()} descripcion="Estudiantes clasificados como riesgo bajo" color="#16a34a" />
+        <StatCard titulo="Riesgo bajo" valor={stats.bajos.toString()} descripcion="Estudiantes clasificados como riesgo bajo" color="#22c55e" />
       </section>
 
-      <section className="surface">
-        <header className="section-header">
+      <section
+        style={{
+          background: "#fff",
+          padding: "24px",
+          borderRadius: "12px",
+          boxShadow: "0 12px 24px rgba(15, 23, 42, 0.05)",
+          display: "flex",
+          flexDirection: "column",
+          gap: "16px"
+        }}
+      >
+        <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <h2 className="section-header__title">Detalle de estudiantes</h2>
-            <p className="section-header__subtitle">
+            <h2 style={{ margin: 0 }}>Detalle de estudiantes</h2>
+            <p style={{ color: "#6b7280", marginTop: "4px" }}>
               Tabla ordenada por puntaje ascendente (menor puntaje = mayor riesgo).
             </p>
           </div>
-          <span className="section-header__meta">
+          <span style={{ color: "#9ca3af" }}>
             {resumen?.length ?? 0} registros · Actualizado {dayjs().format("DD/MM/YYYY HH:mm")}
           </span>
         </header>
         <div className="table-scroll">
-          <table id="detalle-riesgo" className="table table--md table--responsive">
+          <table style={tableStyle}>
             <thead>
               <tr>
                 <th>Documento</th>
@@ -185,7 +186,13 @@ export function DashboardPage() {
             </tbody>
           </table>
         </div>
+<<<<<<< ours
         {resumen?.length === 0 && <p className="empty-message">No hay resultados para los filtros seleccionados.</p>}
+=======
+        {resumen?.length === 0 && (
+          <p style={{ color: "#6b7280", textAlign: "center" }}>No hay resultados para los filtros seleccionados.</p>
+        )}
+>>>>>>> theirs
       </section>
     </div>
   );
@@ -201,44 +208,23 @@ function calcularEstadisticas(resumen: RiskSummaryItem[]) {
 
 function StatCard({ titulo, valor, descripcion, color = "#2563eb" }: { titulo: string; valor: string; descripcion: string; color?: string }) {
   return (
-    <article className="stat-card">
-      <span className="stat-card__title">{titulo}</span>
-      <strong className="stat-card__value" style={{ color }}>
-        {valor}
-      </strong>
-      <span className="stat-card__description">{descripcion}</span>
+    <article
+      style={{
+        background: "#fff",
+        padding: "20px",
+        borderRadius: "12px",
+        boxShadow: "0 12px 24px rgba(15, 23, 42, 0.05)",
+        display: "flex",
+        flexDirection: "column",
+        gap: "8px"
+      }}
+    >
+      <span style={{ color: "#6b7280", fontSize: "0.9rem" }}>{titulo}</span>
+      <strong style={{ fontSize: "2.25rem", color }}>{valor}</strong>
+      <span style={{ color: "#9ca3af", fontSize: "0.9rem" }}>{descripcion}</span>
     </article>
   );
 }
-
-function RowResumen({ item }: { item: RiskSummaryItem }) {
-  return (
-    <tr>
-      <td data-label="Documento">{item.dni}</td>
-      <td data-label="Estudiante">{item.nombre_visible}</td>
-      <td data-label="Programa">{item.programa}</td>
-      <td data-label="Puntaje">{formatPuntaje(item.puntaje)}</td>
-      <td data-label="Nivel">
-        <NivelBadge nivel={item.nivel} />
-      </td>
-      <td data-label="Generado">{dayjs(item.creado_en).format("DD/MM/YYYY HH:mm")}</td>
-    </tr>
-  );
-}
-
-function NivelBadge({ nivel }: { nivel: string }) {
-  const normalized = nivel.toLowerCase();
-  const variant = normalized.includes("alto")
-    ? "badge--danger"
-    : normalized.includes("medio")
-      ? "badge--warning"
-      : normalized.includes("bajo")
-        ? "badge--success"
-        : "";
-
-  return <span className={`badge ${variant}`}>{nivel}</span>;
-}
-
 function formatPuntaje(puntaje: RiskSummaryItem["puntaje"]) {
   if (puntaje === null || puntaje === undefined) {
     return "N/A";
@@ -253,39 +239,68 @@ function formatPuntaje(puntaje: RiskSummaryItem["puntaje"]) {
   return "N/A";
 }
 
-function RiskDonut({ stats }: { stats: RiskStats }) {
-  const total = stats.total || 0;
-  const distribution = [
-    { label: "Riesgo alto", value: stats.altos, color: "#ef4444" },
-    { label: "Riesgo medio", value: stats.medios, color: "#f97316" },
-    { label: "Riesgo bajo", value: stats.bajos, color: "#16a34a" }
-  ];
-
-  const segments = total
-    ? distribution.reduce<{ start: number; end: number; color: string }[]>((acc, segment) => {
-        const start = acc.length ? acc[acc.length - 1].end : 0;
-        const sweep = (segment.value / total) * 100;
-        const end = Math.min(100, start + sweep);
-        acc.push({ start, end, color: segment.color });
-        return acc;
-      }, [])
-    : [];
-
-  const gradient = total
-    ? `conic-gradient(${segments.map((segment) => `${segment.color} ${segment.start}% ${segment.end}%`).join(", ")})`
-    : "conic-gradient(#cbd5f5 0 100%)";
-
+function RowResumen({ item }: { item: RiskSummaryItem }) {
   return (
-    <div className="risk-donut-wrapper">
-      <div className="risk-donut" data-total={total} style={{ background: gradient }} />
-      <div className="risk-donut__legend">
-        {distribution.map((segment) => (
-          <span key={segment.label} className="risk-donut__legend-item">
-            <span className="risk-donut__swatch" style={{ background: segment.color }} />
-            {segment.label}: {segment.value}
-          </span>
-        ))}
-      </div>
-    </div>
+    <tr>
+      <td>{item.dni}</td>
+      <td>{item.nombre_visible}</td>
+      <td>{item.programa}</td>
+      <td>{item.puntaje.toFixed(2)}</td>
+      <td>
+        <NivelBadge nivel={item.nivel} />
+      </td>
+      <td data-label="Generado">{dayjs(item.creado_en).format("DD/MM/YYYY HH:mm")}</td>
+    </tr>
   );
 }
+
+function NivelBadge({ nivel }: { nivel: string }) {
+  const color = nivel.toLowerCase().includes("alto")
+    ? "#fee2e2"
+    : nivel.toLowerCase().includes("medio")
+      ? "#fef3c7"
+      : "#dcfce7";
+  const text = nivel.toLowerCase().includes("alto")
+    ? "#b91c1c"
+    : nivel.toLowerCase().includes("medio")
+      ? "#c2410c"
+      : "#15803d";
+  return (
+    <span
+      style={{
+        background: color,
+        color: text,
+        padding: "4px 8px",
+        borderRadius: "999px",
+        fontSize: "0.85rem",
+        fontWeight: 600
+      }}
+    >
+      {nivel}
+    </span>
+  );
+}
+
+const selectStyle: React.CSSProperties = {
+  padding: "10px 12px",
+  borderRadius: "8px",
+  border: "1px solid #d1d5db",
+  background: "#fff"
+};
+
+const buttonStyle: React.CSSProperties = {
+  alignSelf: "flex-end",
+  padding: "12px 20px",
+  borderRadius: "10px",
+  background: "#2563eb",
+  color: "#fff",
+  border: "none",
+  fontWeight: 600,
+  cursor: "pointer"
+};
+
+const tableStyle: React.CSSProperties = {
+  width: "100%",
+  borderCollapse: "collapse",
+  minWidth: "720px"
+};

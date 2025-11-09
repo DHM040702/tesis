@@ -105,140 +105,184 @@ export function TutoriasPage() {
   });
 
   return (
-    <div className="page page--columns">
-      <section className={formCardClass}>
-        <header className="page__header page__header--compact">
-          <h1 className="page__title">Registro de tutor��as</h1>
-          <p className="page__subtitle">Complete el formulario para registrar la atenci��n brindada al estudiante.</p>
-          <span className="section-header__meta">Modalidad seleccionada: {modalidadNombre}</span>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px", alignItems: "start" }}>
+      <section style={panelStyle}>
+        <header>
+          <h1 style={{ margin: 0 }}>Registro de tutorías</h1>
+          <p style={{ color: "#6b7280" }}>
+            Complete el formulario para registrar la atención brindada al estudiante.
+          </p>
         </header>
-        <form onSubmit={onSubmit} className="form-grid">
-          <label className="field">
-            <span className="field__label">Periodo acadǸmico</span>
-            <select {...register("id_periodo", { valueAsNumber: true, required: true })} className="field__control">
-              <option value="">Seleccione un periodo</option>
-              {periodos?.map((periodo) => (
-                <option key={periodo.id_periodo} value={periodo.id_periodo}>
-                  {periodo.nombre}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            <span className="field__label">Estudiante asignado</span>
-            <select {...register("id_estudiante", { valueAsNumber: true, required: true })} className="field__control">
-              <option value="">Seleccione un estudiante</option>
-              {asignados?.map((est) => (
-                <option key={est.id_estudiante} value={est.id_estudiante}>
-                  {formatearNombreEstudiante(est)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            <span className="field__label">Fecha y hora</span>
-            <input type="datetime-local" {...register("fecha_hora")} className="field__control" />
-          </label>
-          <label className="field">
-            <span className="field__label">Modalidad</span>
-            <select {...register("id_modalidad", { valueAsNumber: true, required: true })} className="field__control">
-              {opcionesModalidad.map((opcion) => (
-                <option key={opcion.value} value={opcion.value}>
-                  {opcion.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field field--full">
-            <span className="field__label">Tema tratado</span>
-            <input type="text" {...register("tema", { required: true, minLength: 3 })} className="field__control" />
-          </label>
-          <label className="field field--full">
-            <span className="field__label">Observaciones</span>
-            <textarea {...register("observaciones")} className="field__control field__control--textarea" rows={3} />
-          </label>
-          <label className="field field--full">
-            <span className="field__label">Seguimiento sugerido</span>
-            <textarea {...register("seguimiento")} className="field__control field__control--textarea" rows={3} />
-          </label>
-
-          {mensaje && <div className="alert alert--success field--full">{mensaje}</div>}
-          {error && <div className="alert alert--error field--full">{error}</div>}
-
-          <div className="form-actions field--full">
-            <button type="submit" disabled={enviando} className="button button--primary">
-              {enviando ? "Guardando..." : "Registrar tutor��a"}
-            </button>
+        <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <div style={{ display: "grid", gap: "12px" }}>
+            <label style={labelStyle}>
+              <span>Periodo académico</span>
+              <select {...register("id_periodo", { valueAsNumber: true, required: true })} style={selectStyle}>
+                <option value="">Seleccione un periodo</option>
+                {periodos?.map((periodo) => (
+                  <option key={periodo.id_periodo} value={periodo.id_periodo}>
+                    {periodo.nombre}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label style={labelStyle}>
+              <span>Estudiante asignado</span>
+              <select {...register("id_estudiante", { valueAsNumber: true, required: true })} style={selectStyle}>
+                <option value="">Seleccione un estudiante</option>
+                {asignados?.map((est) => (
+                  <option key={est.id_estudiante} value={est.id_estudiante}>
+                    {formatearNombreEstudiante(est)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label style={labelStyle}>
+              <span>Fecha y hora</span>
+              <input type="datetime-local" {...register("fecha_hora")} style={inputStyle} />
+            </label>
+            <label style={labelStyle}>
+              <span>Modalidad</span>
+              <select {...register("id_modalidad", { valueAsNumber: true, required: true })} style={selectStyle}>
+                {opcionesModalidad.map((opcion) => (
+                  <option key={opcion.value} value={opcion.value}>
+                    {opcion.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label style={labelStyle}>
+              <span>Tema tratado</span>
+              <input type="text" {...register("tema", { required: true, minLength: 3 })} style={inputStyle} />
+            </label>
+            <label style={labelStyle}>
+              <span>Observaciones</span>
+              <textarea {...register("observaciones")} style={textareaStyle} rows={3} />
+            </label>
+            <label style={labelStyle}>
+              <span>Seguimiento sugerido</span>
+              <textarea {...register("seguimiento")} style={textareaStyle} rows={3} />
+            </label>
           </div>
+          {mensaje && <div style={{ color: "#22c55e", fontWeight: 600 }}>{mensaje}</div>}
+          {error && <div style={{ color: "#ef4444" }}>{error}</div>}
+          <button type="submit" disabled={enviando} style={submitButton}>
+            {enviando ? "Guardando..." : "Registrar tutoría"}
+          </button>
         </form>
       </section>
 
-      <section className="surface">
-        <header className="section-header">
-          <div>
-            <h2 className="section-header__title">Historial reciente</h2>
-            <p className="section-header__subtitle">Filtre por periodo y estudiante para visualizar las sesiones registradas.</p>
-          </div>
+      <section style={panelStyle}>
+        <header style={{ marginBottom: "16px" }}>
+          <h2 style={{ margin: 0 }}>Historial reciente</h2>
+          <p style={{ color: "#6b7280" }}>
+            Filtre por periodo y estudiante para visualizar las sesiones registradas.
+          </p>
         </header>
+<<<<<<< ours
         <div className="timeline">
           {tutorias?.map((tutoria) => (
             <TimelineItem key={tutoria.id_tutoria} tutoria={tutoria} />
           ))}
         </div>
         {tutorias && tutorias.length === 0 && <p className="empty-message">Registre una tutor��a para visualizarla aqu��.</p>}
+=======
+        <div className="table-scroll">
+          <table style={tablaStyle}>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Estudiante</th>
+                <th>Tema</th>
+                <th>Periodo</th>
+                <th>Seguimiento</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tutorias?.map((tutoria) => (
+                <FilaTutoria key={tutoria.id_tutoria} tutoria={tutoria} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {tutorias && tutorias.length === 0 && (
+          <p style={{ color: "#6b7280", textAlign: "center", marginTop: "16px" }}>
+            Registre una tutoría para visualizarla aquí.
+          </p>
+        )}
+>>>>>>> theirs
       </section>
     </div>
   );
 }
 
-type AsignadoEstudiante = StudentItem & { estudiante?: string | null };
-
-function formatearNombreEstudiante(estudiante: AsignadoEstudiante) {
-  if (estudiante.estudiante) {
-    const nombre = estudiante.estudiante.trim();
-    return `${estudiante.dni ?? ""}${nombre ? ` �� ${nombre}` : ""}`;
-  }
-
+function formatearNombreEstudiante(estudiante: StudentItem) {
   const partes = [estudiante.apellido_paterno, estudiante.apellido_materno, estudiante.nombres]
     .filter(Boolean)
-    .join(" ")
-    .trim();
-  const nombreVisible = partes || "Sin nombre";
-  const prefijo = estudiante.dni ? `${estudiante.dni} �� ` : "";
-  return `${prefijo}${nombreVisible}`;
+    .join(" ");
+  return `${estudiante.dni ?? ""} · ${partes}`;
 }
 
 function TimelineItem({ tutoria }: { tutoria: ApiTutoriasResponse }) {
   return (
-    <article className="timeline__item">
-      <h3 className="timeline__title">{tutoria.tema}</h3>
-      <div className="timeline__meta">
-        <span>{formatearFecha(tutoria.fecha_hora)}</span>
-        <span>{tutoria.estudiante}</span>
-        <span>{tutoria.periodo}</span>
-        <span>Tutor: {tutoria.tutor}</span>
-      </div>
-      <p className="timeline__body">{tutoria.observaciones ?? "Sin observaciones registradas."}</p>
-      {tutoria.seguimiento && (
-        <p className="timeline__body">
-          <strong>Seguimiento:</strong> {tutoria.seguimiento}
-        </p>
-      )}
-    </article>
+    <tr>
+      <td>{new Date(tutoria.fecha_hora).toLocaleString()}</td>
+      <td>{tutoria.estudiante}</td>
+      <td>{tutoria.tema}</td>
+      <td>{tutoria.periodo}</td>
+      <td>{tutoria.seguimiento ?? "-"}</td>
+    </tr>
   );
 }
 
-function formatearFecha(fecha?: string) {
-  if (!fecha) return "-";
-  const date = new Date(fecha);
-  if (Number.isNaN(date.getTime())) {
-    return "-";
-  }
-  return date.toLocaleString("es-PE", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit"
-  });
-}
+const panelStyle: React.CSSProperties = {
+  background: "#fff",
+  padding: "24px",
+  borderRadius: "12px",
+  boxShadow: "0 12px 24px rgba(15, 23, 42, 0.05)",
+  display: "flex",
+  flexDirection: "column",
+  gap: "16px"
+};
+
+const labelStyle: React.CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "6px",
+  fontSize: "0.95rem"
+};
+
+const selectStyle: React.CSSProperties = {
+  padding: "10px 12px",
+  borderRadius: "8px",
+  border: "1px solid #d1d5db"
+};
+
+const inputStyle: React.CSSProperties = {
+  padding: "10px 12px",
+  borderRadius: "8px",
+  border: "1px solid #d1d5db"
+};
+
+const textareaStyle: React.CSSProperties = {
+  padding: "12px",
+  borderRadius: "8px",
+  border: "1px solid #d1d5db",
+  resize: "vertical"
+};
+
+const submitButton: React.CSSProperties = {
+  padding: "12px",
+  borderRadius: "10px",
+  border: "none",
+  background: "#2563eb",
+  color: "#fff",
+  fontWeight: 600,
+  cursor: "pointer"
+};
+
+const tablaStyle: React.CSSProperties = {
+  width: "100%",
+  borderCollapse: "collapse",
+  minWidth: "680px"
+};
