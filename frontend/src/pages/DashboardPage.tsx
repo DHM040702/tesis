@@ -1,10 +1,10 @@
-
-import { useEffect, useMemo, useState } from "react";
->>>>>>> theirs
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "../api/client";
-import { RiskSummaryItem } from "../types";
 import dayjs from "dayjs";
+import { apiClient } from "../api/client";
+import { ApiUser, RiskSummaryItem } from "../types";
+import { useAuth } from "../context/AuthContext";
 
 type Filters = {
   periodo?: number;
@@ -12,8 +12,36 @@ type Filters = {
 };
 
 type RiskStats = ReturnType<typeof calcularEstadisticas>;
+type DashboardVariant = "admin" | "tutor" | "student";
 
 export function DashboardPage() {
+  const { user } = useAuth();
+  const variant = resolveDashboardVariant(user?.roles);
+
+  if (variant === "student") {
+    return <StudentDashboard user={user} />;
+  }
+  if (variant === "tutor") {
+    return <TutorDashboard />;
+  }
+  return <AdminDashboard />;
+}
+
+function resolveDashboardVariant(roles?: string[]): DashboardVariant {
+  const normalized = (roles ?? []).map((r) => r.toLowerCase());
+  if (normalized.some((role) => role === "admin" || role === "autoridad")) {
+    return "admin";
+  }
+  if (normalized.some((role) => role === "tutor" || role === "docente")) {
+    return "tutor";
+  }
+  if (normalized.includes("estudiante")) {
+    return "student";
+  }
+  return "admin";
+}
+
+function AdminDashboard() {
   const [filters, setFilters] = useState<Filters>({});
   const { data: periodos } = useQuery({
     queryKey: ["periodos"],
@@ -69,32 +97,47 @@ export function DashboardPage() {
   }, [resumen]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-      <header>
-        <h1 style={{ margin: 0, color: "#111827" }}>Resumen de riesgo estudiantil</h1>
-        <p style={{ color: "#4b5563", marginTop: "8px" }}>
-          Visualice los puntajes de riesgo generados por el modelo predictivo.
-        </p>
+    <div className="page">
+      <header className="page__header">
+        <h1 className="page__title">Resumen de riesgo estudiantil</h1>
+        <p className="page__subtitle">Visualice los puntajes de riesgo generados por el modelo predictivo.</p>
       </header>
 
-      <section
-        style={{
-          display: "flex",
-          gap: "16px",
-          flexWrap: "wrap",
-          background: "#fff",
-          padding: "20px",
-          borderRadius: "12px",
-          boxShadow: "0 12px 24px rgba(15, 23, 42, 0.05)"
-        }}
-      >
-        <div style={{ minWidth: "220px", flex: 1 }}>
-          <label style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <span>Periodo académico</span>
+      <section className="surface hero-card">
+        <div className="hero-card__stats">
+          <div>
+            <p className="page__subtitle">Seguimiento del periodo</p>
+            <h2 className="hero-card__headline">{stats.total} estudiantes monitoreados</h2>
+            <p className="hero-card__copy">
+              Datos actualizados {dayjs().format("DD MMM YYYY, HH:mm")} · priorice cohortes de alto riesgo.
+            </p>
+          </div>
+          <div className="hero-card__chart">
+            <RiskDonut stats={stats} />
+          </div>
+        </div>
+        <div className="hero-card__actions">
+          <button type="button" className="button button--ghost" onClick={handleDownload} disabled={!canDownload}>
+            Descargar CSV
+          </button>
+          <button
+            type="button"
+            className="button button--primary"
+            onClick={() => document.getElementById("detalle-riesgo")?.scrollIntoView({ behavior: "smooth" })}
+          >
+            Ver detalle de cohortes
+          </button>
+        </div>
+      </section>
+
+      <section className="surface filters-panel">
+        <div className="filters-panel__column">
+          <label className="field">
+            <span className="field__label">Periodo académico</span>
             <select
               value={filters.periodo ?? ""}
               onChange={(e) => setFilters((prev) => ({ ...prev, periodo: Number(e.target.value) }))}
-              style={selectStyle}
+              className="field__control"
             >
               <option value="" disabled>
                 Seleccione un periodo
@@ -107,9 +150,9 @@ export function DashboardPage() {
             </select>
           </label>
         </div>
-        <div style={{ minWidth: "220px", flex: 1 }}>
-          <label style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <span>Programa académico</span>
+        <div className="filters-panel__column">
+          <label className="field">
+            <span className="field__label">Programa académico</span>
             <select
               value={filters.programa ?? ""}
               onChange={(e) =>
@@ -118,7 +161,7 @@ export function DashboardPage() {
                   programa: e.target.value ? Number(e.target.value) : undefined
                 }))
               }
-              style={selectStyle}
+              className="field__control"
             >
               <option value="">Todos</option>
               {programas?.map((programa) => (
@@ -129,46 +172,32 @@ export function DashboardPage() {
             </select>
           </label>
         </div>
-        <button
-          type="button"
-          onClick={() => refetch()}
-          style={buttonStyle}
-        >
+        <button type="button" onClick={() => refetch()} className="button button--primary filters-panel__action">
           {isFetching ? "Actualizando..." : "Actualizar"}
         </button>
       </section>
 
-      <section style={{ display: "grid", gap: "16px", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+      <section className="stats-grid">
         <StatCard titulo="Estudiantes evaluados" valor={stats.total.toString()} descripcion="Total de registros con puntaje" />
         <StatCard titulo="Riesgo alto" valor={stats.altos.toString()} descripcion="Estudiantes clasificados como alto riesgo" color="#ef4444" />
         <StatCard titulo="Riesgo medio" valor={stats.medios.toString()} descripcion="Estudiantes clasificados como riesgo medio" color="#f97316" />
-        <StatCard titulo="Riesgo bajo" valor={stats.bajos.toString()} descripcion="Estudiantes clasificados como riesgo bajo" color="#22c55e" />
+        <StatCard titulo="Riesgo bajo" valor={stats.bajos.toString()} descripcion="Estudiantes clasificados como riesgo bajo" color="#16a34a" />
       </section>
 
-      <section
-        style={{
-          background: "#fff",
-          padding: "24px",
-          borderRadius: "12px",
-          boxShadow: "0 12px 24px rgba(15, 23, 42, 0.05)",
-          display: "flex",
-          flexDirection: "column",
-          gap: "16px"
-        }}
-      >
-        <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <section className="surface">
+        <header className="section-header">
           <div>
-            <h2 style={{ margin: 0 }}>Detalle de estudiantes</h2>
-            <p style={{ color: "#6b7280", marginTop: "4px" }}>
+            <h2 className="section-header__title">Detalle de estudiantes</h2>
+            <p className="section-header__subtitle">
               Tabla ordenada por puntaje ascendente (menor puntaje = mayor riesgo).
             </p>
           </div>
-          <span style={{ color: "#9ca3af" }}>
+          <span className="section-header__meta">
             {resumen?.length ?? 0} registros · Actualizado {dayjs().format("DD/MM/YYYY HH:mm")}
           </span>
         </header>
         <div className="table-scroll">
-          <table style={tableStyle}>
+          <table id="detalle-riesgo" className="table table--md table--responsive">
             <thead>
               <tr>
                 <th>Documento</th>
@@ -186,13 +215,193 @@ export function DashboardPage() {
             </tbody>
           </table>
         </div>
-<<<<<<< ours
         {resumen?.length === 0 && <p className="empty-message">No hay resultados para los filtros seleccionados.</p>}
-=======
-        {resumen?.length === 0 && (
-          <p style={{ color: "#6b7280", textAlign: "center" }}>No hay resultados para los filtros seleccionados.</p>
+      </section>
+    </div>
+  );
+}
+
+function TutorDashboard() {
+  const { data: asignados = [], isFetching: loadingAsignados, error: asignadosError } = useQuery({
+    queryKey: ["tutor-dashboard", "asignados"],
+    queryFn: () => apiClient.getTutorAssignments(),
+    staleTime: 60_000
+  });
+
+  const { data: tutorias = [], isFetching: loadingTutorias, error: tutoriasError } = useQuery({
+    queryKey: ["tutor-dashboard", "tutorias"],
+    queryFn: () => apiClient.getTutorias({}),
+    staleTime: 30_000
+  });
+
+  const upcomingTutorias = useMemo(() => {
+    const reference = dayjs();
+    return [...tutorias]
+      .filter((t) => dayjs(t.fecha_hora).isAfter(reference.subtract(1, "hour")))
+      .sort((a, b) => dayjs(a.fecha_hora).valueOf() - dayjs(b.fecha_hora).valueOf())
+      .slice(0, 4);
+  }, [tutorias]);
+
+  const tutorStats = useMemo(() => {
+    const reference = dayjs();
+    const programas = new Set(asignados.map((a) => a.programa ?? "Sin programa"));
+    const pendientes = tutorias.filter((t) => dayjs(t.fecha_hora).isAfter(reference)).length;
+    const registradas = Math.max(0, tutorias.length - pendientes);
+    return {
+      asignados: asignados.length,
+      programas: programas.size,
+      pendientes,
+      registradas
+    };
+  }, [asignados, tutorias]);
+
+  return (
+    <div className="page">
+      <header className="page__header">
+        <h1 className="page__title">Panel del tutor</h1>
+        <p className="page__subtitle">Supervise sus estudiantes asignados y organice las próximas sesiones.</p>
+      </header>
+
+      <section className="surface hero-card">
+        <div className="hero-card__stats">
+          <div>
+            <p className="page__subtitle">Seguimiento activo</p>
+            <h2 className="hero-card__headline">{tutorStats.asignados} estudiantes acompañados</h2>
+            <p className="hero-card__copy">
+              {tutorStats.pendientes} sesiones pendientes · {tutorStats.registradas} sesiones registradas este ciclo.
+            </p>
+          </div>
+          <div className="hero-card__actions">
+            <Link to="/tutorias" className="button button--primary">
+              Registrar tutoría
+            </Link>
+            <Link to="/estudiantes" className="button button--ghost">
+              Ver estudiantes
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="summary-grid">
+        <HighlightCard titulo="Asignados" cantidad={tutorStats.asignados} />
+        <HighlightCard titulo="Programas" cantidad={tutorStats.programas} colorFondo="rgba(59, 130, 246, 0.12)" colorTexto="#1d4ed8" />
+        <HighlightCard titulo="Sesiones pendientes" cantidad={tutorStats.pendientes} colorFondo="rgba(249, 115, 22, 0.15)" colorTexto="#c2410c" />
+        <HighlightCard titulo="Sesiones registradas" cantidad={tutorStats.registradas} colorFondo="rgba(16, 185, 129, 0.14)" colorTexto="#047857" />
+      </section>
+
+      <section className="surface">
+        <header className="section-header">
+          <div>
+            <h2 className="section-header__title">Estudiantes asignados</h2>
+            {loadingAsignados && <span className="section-header__meta">Cargando...</span>}
+          </div>
+        </header>
+        {asignadosError && <div className="alert alert--error">No se pudieron cargar las asignaciones.</div>}
+        <div className="table-scroll">
+          <table className="table table--sm table--responsive">
+            <thead>
+              <tr>
+                <th>Documento</th>
+                <th>Estudiante</th>
+                <th>Programa</th>
+                <th>Periodo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {asignados.slice(0, 6).map((asignado) => (
+                <tr key={asignado.id_estudiante}>
+                  <td data-label="Documento">{asignado.dni ?? "-"}</td>
+                  <td data-label="Estudiante">{asignado.estudiante ?? "Sin nombre"}</td>
+                  <td data-label="Programa">{asignado.programa ?? "Sin programa"}</td>
+                  <td data-label="Periodo">{asignado.periodo ?? "-"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {asignados.length === 0 && !loadingAsignados && !asignadosError && (
+          <p className="empty-message">Aún no tiene estudiantes asignados para el periodo seleccionado.</p>
         )}
->>>>>>> theirs
+      </section>
+
+      <section className="surface">
+        <header className="section-header">
+          <div>
+            <h2 className="section-header__title">Próximas tutorías</h2>
+            {loadingTutorias && <span className="section-header__meta">Sincronizando...</span>}
+          </div>
+        </header>
+        {tutoriasError && <div className="alert alert--error">No se pudieron cargar las tutorías.</div>}
+        {upcomingTutorias.length > 0 ? (
+          <div className="timeline">
+            {upcomingTutorias.map((tutoria) => (
+              <article className="timeline__item" key={tutoria.id_tutoria}>
+                <h3 className="timeline__title">{tutoria.tema}</h3>
+                <div className="timeline__meta">
+                  <span>{dayjs(tutoria.fecha_hora).format("DD MMM YYYY · HH:mm")}</span>
+                  <span>{tutoria.estudiante}</span>
+                  <span>{tutoria.periodo}</span>
+                </div>
+                <p className="timeline__body">{tutoria.seguimiento ?? "Sin seguimiento registrado."}</p>
+              </article>
+            ))}
+          </div>
+        ) : (
+          !loadingTutorias &&
+          !tutoriasError && <p className="empty-message">No hay tutorías programadas para los próximos días.</p>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function StudentDashboard({ user }: { user: ApiUser | null }) {
+  const firstName = (user?.persona?.nombres ?? user?.correo ?? "Estudiante").split(" ")[0];
+  const roles = user?.roles?.join(", ") || "Sin rol asignado";
+
+  return (
+    <div className="page">
+      <header className="page__header">
+        <h1 className="page__title">Hola, {firstName}</h1>
+        <p className="page__subtitle">Este panel resume tus acciones prioritarias dentro del sistema de acompañamiento.</p>
+      </header>
+
+      <section className="surface hero-card">
+        <div className="hero-card__stats">
+          <div>
+            <p className="page__subtitle">Tu cuenta</p>
+            <h2 className="hero-card__headline">Rol: {roles}</h2>
+            <p className="hero-card__copy">Mantente al día con tus tutorías y alertas académicas para recibir soporte oportuno.</p>
+          </div>
+          <div className="hero-card__actions">
+            <Link to="/tutorias" className="button button--primary">
+              Ver tutorías
+            </Link>
+            <a className="button button--ghost" href="mailto:soporte@unasam.edu.pe">
+              Contactar soporte
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <section className="summary-grid">
+        <StudentCard titulo="Revisa tus alertas" descripcion="Confirma las notificaciones recibidas y comunica cualquier duda a tu tutor." />
+        <StudentCard titulo="Actualiza tu progreso" descripcion="Registra compromisos y acuerdos después de cada sesión de tutoría." />
+        <StudentCard titulo="Organiza tu calendario" descripcion="Planifica estudios, tutorías y actividades personales para evitar imprevistos." />
+      </section>
+
+      <section className="surface">
+        <header className="section-header">
+          <div>
+            <h2 className="section-header__title">Recursos rápidos</h2>
+            <p className="section-header__subtitle">Accesos sugeridos para que aproveches el acompañamiento académico.</p>
+          </div>
+        </header>
+        <div className="summary-grid">
+          <StudentCard titulo="Tutorías" descripcion="Consulta el historial de sesiones y prepara tus próximos encuentros." />
+          <StudentCard titulo="Comunicaciones" descripcion="Mantente conectado con tu tutor y responde a las alertas enviadas." />
+          <StudentCard titulo="Bienestar" descripcion="Solicita orientación adicional cuando detectes necesidades personales." />
+        </div>
       </section>
     </div>
   );
@@ -208,23 +417,44 @@ function calcularEstadisticas(resumen: RiskSummaryItem[]) {
 
 function StatCard({ titulo, valor, descripcion, color = "#2563eb" }: { titulo: string; valor: string; descripcion: string; color?: string }) {
   return (
-    <article
-      style={{
-        background: "#fff",
-        padding: "20px",
-        borderRadius: "12px",
-        boxShadow: "0 12px 24px rgba(15, 23, 42, 0.05)",
-        display: "flex",
-        flexDirection: "column",
-        gap: "8px"
-      }}
-    >
-      <span style={{ color: "#6b7280", fontSize: "0.9rem" }}>{titulo}</span>
-      <strong style={{ fontSize: "2.25rem", color }}>{valor}</strong>
-      <span style={{ color: "#9ca3af", fontSize: "0.9rem" }}>{descripcion}</span>
+    <article className="stat-card">
+      <span className="stat-card__title">{titulo}</span>
+      <strong className="stat-card__value" style={{ color }}>
+        {valor}
+      </strong>
+      <span className="stat-card__description">{descripcion}</span>
     </article>
   );
 }
+
+function RowResumen({ item }: { item: RiskSummaryItem }) {
+  return (
+    <tr>
+      <td data-label="Documento">{item.dni}</td>
+      <td data-label="Estudiante">{item.nombre_visible}</td>
+      <td data-label="Programa">{item.programa}</td>
+      <td data-label="Puntaje">{formatPuntaje(item.puntaje)}</td>
+      <td data-label="Nivel">
+        <NivelBadge nivel={item.nivel} />
+      </td>
+      <td data-label="Generado">{dayjs(item.creado_en).format("DD/MM/YYYY HH:mm")}</td>
+    </tr>
+  );
+}
+
+function NivelBadge({ nivel }: { nivel: string }) {
+  const normalized = nivel.toLowerCase();
+  const variant = normalized.includes("alto")
+    ? "badge--danger"
+    : normalized.includes("medio")
+      ? "badge--warning"
+      : normalized.includes("bajo")
+        ? "badge--success"
+        : "";
+
+  return <span className={`badge ${variant}`}>{nivel}</span>;
+}
+
 function formatPuntaje(puntaje: RiskSummaryItem["puntaje"]) {
   if (puntaje === null || puntaje === undefined) {
     return "N/A";
@@ -239,68 +469,57 @@ function formatPuntaje(puntaje: RiskSummaryItem["puntaje"]) {
   return "N/A";
 }
 
-function RowResumen({ item }: { item: RiskSummaryItem }) {
+function RiskDonut({ stats }: { stats: RiskStats }) {
+  const total = stats.total || 0;
+  const distribution = [
+    { label: "Riesgo alto", value: stats.altos, color: "#ef4444" },
+    { label: "Riesgo medio", value: stats.medios, color: "#f97316" },
+    { label: "Riesgo bajo", value: stats.bajos, color: "#16a34a" }
+  ];
+
+  const segments = total
+    ? distribution.reduce<{ start: number; end: number; color: string }[]>((acc, segment) => {
+        const start = acc.length ? acc[acc.length - 1].end : 0;
+        const sweep = (segment.value / total) * 100;
+        const end = Math.min(100, start + sweep);
+        acc.push({ start, end, color: segment.color });
+        return acc;
+      }, [])
+    : [];
+
+  const gradient = total
+    ? `conic-gradient(${segments.map((segment) => `${segment.color} ${segment.start}% ${segment.end}%`).join(", ")})`
+    : "conic-gradient(#cbd5f5 0 100%)";
+
   return (
-    <tr>
-      <td>{item.dni}</td>
-      <td>{item.nombre_visible}</td>
-      <td>{item.programa}</td>
-      <td>{item.puntaje.toFixed(2)}</td>
-      <td>
-        <NivelBadge nivel={item.nivel} />
-      </td>
-      <td data-label="Generado">{dayjs(item.creado_en).format("DD/MM/YYYY HH:mm")}</td>
-    </tr>
+    <div className="risk-donut-wrapper">
+      <div className="risk-donut" data-total={total} style={{ background: gradient }} />
+      <div className="risk-donut__legend">
+        {distribution.map((segment) => (
+          <span key={segment.label} className="risk-donut__legend-item">
+            <span className="risk-donut__swatch" style={{ background: segment.color }} />
+            {segment.label}: {segment.value}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 
-function NivelBadge({ nivel }: { nivel: string }) {
-  const color = nivel.toLowerCase().includes("alto")
-    ? "#fee2e2"
-    : nivel.toLowerCase().includes("medio")
-      ? "#fef3c7"
-      : "#dcfce7";
-  const text = nivel.toLowerCase().includes("alto")
-    ? "#b91c1c"
-    : nivel.toLowerCase().includes("medio")
-      ? "#c2410c"
-      : "#15803d";
+function HighlightCard({ titulo, cantidad, colorFondo = "rgba(37, 99, 235, 0.1)", colorTexto = "#1d4ed8" }: { titulo: string; cantidad: number; colorFondo?: string; colorTexto?: string }) {
   return (
-    <span
-      style={{
-        background: color,
-        color: text,
-        padding: "4px 8px",
-        borderRadius: "999px",
-        fontSize: "0.85rem",
-        fontWeight: 600
-      }}
-    >
-      {nivel}
-    </span>
+    <article className="summary-card" style={{ background: colorFondo, color: colorTexto }}>
+      <span className="summary-card__title">{titulo}</span>
+      <strong className="summary-card__value">{cantidad}</strong>
+    </article>
   );
 }
 
-const selectStyle: React.CSSProperties = {
-  padding: "10px 12px",
-  borderRadius: "8px",
-  border: "1px solid #d1d5db",
-  background: "#fff"
-};
-
-const buttonStyle: React.CSSProperties = {
-  alignSelf: "flex-end",
-  padding: "12px 20px",
-  borderRadius: "10px",
-  background: "#2563eb",
-  color: "#fff",
-  border: "none",
-  fontWeight: 600,
-  cursor: "pointer"
-};
-
-const tableStyle: React.CSSProperties = {
-  width: "100%",
-  borderCollapse: "collapse",
-  minWidth: "720px"
-};
+function StudentCard({ titulo, descripcion }: { titulo: string; descripcion: string }) {
+  return (
+    <article className="summary-card" style={{ background: "rgba(255, 255, 255, 0.9)", color: "#1f2937" }}>
+      <span className="summary-card__title">{titulo}</span>
+      <p className="stat-card__description">{descripcion}</p>
+    </article>
+  );
+}

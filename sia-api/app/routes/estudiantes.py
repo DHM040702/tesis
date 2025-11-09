@@ -15,13 +15,14 @@ async def listar(
     programa: int | None = Query(None),
     periodo: int | None = Query(None),
     riesgo: str | None = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=10, le=40, description="Cantidad de estudiantes por página"),
     db: AsyncSession = Depends(get_session)
 ):
-    sql = """
-      SELECT e.id_estudiante, e.codigo_alumno,
-             p.dni, p.apellido_paterno, p.apellido_materno, p.nombres,
-             prog.nombre AS programa,
-             pr.puntaje, nr.nombre AS nivel
+    if page_size not in {10, 20, 30, 40}:
+        page_size = 20
+
+    sql_from = """
       FROM estudiantes e
       LEFT JOIN personas p ON p.id_persona=e.id_persona
       LEFT JOIN programas prog ON prog.id_programa=e.id_programa
@@ -29,19 +30,47 @@ async def listar(
       LEFT JOIN niveles_riesgo nr ON nr.id_nivel_riesgo=pr.id_nivel_riesgo
       WHERE 1=1
     """
-    params = {}
+    filters_sql = ""
+    params: dict[str, int | str] = {}
     if programa:
-        sql += " AND e.id_programa=:prog"
+        filters_sql += " AND e.id_programa=:prog"
         params["prog"] = programa
     if periodo:
-        sql += " AND pr.id_periodo=:per"
+        filters_sql += " AND pr.id_periodo=:per"
         params["per"] = periodo
     if riesgo:
-        sql += " AND nr.nombre=:niv"
+        filters_sql += " AND nr.nombre=:niv"
         params["niv"] = riesgo
-    sql += " ORDER BY pr.puntaje IS NULL, pr.puntaje ASC, p.apellido_paterno ASC, p.apellido_materno ASC, p.nombres ASC"
-    res = await db.execute(text(sql), params)
-    return {"ok": True, "data": [dict(r._mapping) for r in res.fetchall()]}
+    
+    offset = (page - 1) * page_size
+    data_query = text(
+        """
+      SELECT e.id_estudiante, e.codigo_alumno,
+             p.dni, p.apellido_paterno, p.apellido_materno, p.nombres,
+             prog.nombre AS programa,
+             pr.puntaje, nr.nombre AS nivel
+    """
+        + sql_from
+        + filters_sql
+        + " ORDER BY pr.puntaje IS NULL, pr.puntaje ASC, p.apellido_paterno ASC, p.apellido_materno ASC, p.nombres ASC"
+        + " LIMIT :limit OFFSET :offset"
+    )
+    data_params = {**params, "limit": page_size, "offset": offset}
+    res = await db.execute(data_query, data_params)
+    rows = [dict(r._mapping) for r in res.fetchall()]
+
+    count_query = text("SELECT COUNT(DISTINCT e.id_estudiante) " + sql_from + filters_sql)
+    total = (await db.execute(count_query, params)).scalar_one()
+
+    return {
+        "ok": True,
+        "data": {
+            "items": rows,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+        },
+    }
 
 @router.get("/{id_estudiante}", response_model=ApiResponse, dependencies=[Depends(require_roles("admin","autoridad","tutor"))])
 async def detalle(id_estudiante: int, db: AsyncSession = Depends(get_session)):

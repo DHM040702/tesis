@@ -1,4 +1,4 @@
-
+﻿import { useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
@@ -23,65 +23,69 @@ export function Layout() {
   });
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh" }}>
-      <aside
-        style={{
-          width: "240px",
-          backgroundColor: "#111827",
-          color: "#fff",
-          padding: "24px 16px",
-          display: "flex",
-          flexDirection: "column",
-          gap: "16px"
-        }}
-      >
-        <Link to="/" style={{ color: "#fff", fontWeight: 700, fontSize: "1.25rem" }}>
-          SIA UNASAM
+    <div className={`app-shell${sidebarOpen ? " is-sidebar-open" : ""}`}>
+      <aside className={`sidebar${sidebarOpen ? " is-open" : ""}`}>
+        <button type="button" className="sidebar__close" onClick={toggleSidebar} aria-label="Cerrar men├║ lateral">
+          Ô£ò
+        </button>
+        <Link to="/" className="sidebar__brand" onClick={closeSidebar}>
+          <span className="sidebar__brand-mark">SIA</span>
+          <span className="sidebar__brand-text">Sistema Integral de Acompa├▒amiento</span>
         </Link>
-        <nav style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          <NavLink to="/" end style={({ isActive }) => linkStyle(isActive)}>
-            Resumen de riesgo
+        <nav className="sidebar__nav">
+          <NavLink to="/" end className={({ isActive }) => linkClass(isActive)} onClick={closeSidebar}>
+            <span className="sidebar__link-indicator" aria-hidden />
+            <span>Resumen de riesgo</span>
           </NavLink>
-          <NavLink to="/estudiantes" style={({ isActive }) => linkStyle(isActive)}>
-            Estudiantes
+          <NavLink to="/estudiantes" className={({ isActive }) => linkClass(isActive)} onClick={closeSidebar}>
+            <span className="sidebar__link-indicator" aria-hidden />
+            <span>Estudiantes</span>
           </NavLink>
-          <NavLink to="/tutorias" style={({ isActive }) => linkStyle(isActive)}>
-            Tutorías
+          <NavLink to="/tutorias" className={({ isActive }) => linkClass(isActive)} onClick={closeSidebar}>
+            <span className="sidebar__link-indicator" aria-hidden />
+            <span>Tutor├¡as</span>
           </NavLink>
         </nav>
-        <div style={{ marginTop: "auto", fontSize: "0.85rem", color: "#cbd5f5" }}>
-          <p style={{ margin: 0, fontWeight: 600 }}>Usuario</p>
-          <p style={{ margin: "4px 0" }}>{user?.persona?.nombres}</p>
-          <p style={{ margin: "4px 0" }}>{user?.correo}</p>
-          <p style={{ margin: "4px 0" }}>Roles: {user?.roles?.join(", ")}</p>
+        <div className="sidebar__footer">
+          <div className="sidebar__profile">
+            <span className="sidebar__profile-label">Usuario</span>
+            <strong className="sidebar__profile-name">{user?.persona?.nombres ?? "Sin nombre"}</strong>
+            <span className="sidebar__profile-email">{user?.correo}</span>
+            <span className="sidebar__profile-roles">Roles: {user?.roles?.join(", ")}</span>
+          </div>
+          <button type="button" onClick={handleLogout} className="button button--ghost">
+            Cerrar sesi├│n
+          </button>
         </div>
-        <button
-          onClick={handleLogout}
-          style={{
-            border: "1px solid #f87171",
-            background: "transparent",
-            color: "#f87171",
-            padding: "8px 12px",
-            borderRadius: "6px",
-            cursor: "pointer"
-          }}
-        >
-          Cerrar sesión
-        </button>
       </aside>
-      <main style={{ flex: 1, padding: "32px", backgroundColor: "#f5f6fa" }}>
-        <Outlet />
+      {sidebarOpen && <div className="sidebar__overlay" onClick={closeSidebar} aria-hidden />}
+      <main className="app-content">
+        <header className="app-topbar">
+          <div className="app-topbar__meta">
+            <button type="button" className="app-topbar__menu" onClick={toggleSidebar} aria-label="Abrir men├║">
+              Ôÿ░
+            </button>
+            <p className="app-topbar__eyebrow">Panel principal</p>
+            <h1 className="app-topbar__title">{welcomeName}</h1>
+            <span className="app-topbar__date">{today}</span>
+          </div>
+          <div className="app-topbar__actions">
+            <button type="button" className="button button--ghost">
+              Descargar reporte
+            </button>
+            <button type="button" className="button button--primary">
+              Registrar tutor├¡a
+            </button>
+          </div>
+        </header>
+        <div className="app-content__inner">
+          <Outlet />
+        </div>
       </main>
     </div>
   );
 }
 
-function linkStyle(isActive: boolean) {
-  return {
-    padding: "10px 12px",
-    borderRadius: "6px",
-    color: "#f9fafb",
-    backgroundColor: isActive ? "#2563eb" : "transparent",
-    fontWeight: isActive ? 600 : 500
-  };
+function linkClass(isActive: boolean) {
+  return `sidebar__link${isActive ? " is-active" : ""}`;
 }

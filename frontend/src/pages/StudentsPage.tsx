@@ -1,12 +1,18 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "../api/client";
 import { StudentItem } from "../types";
 
-const nivelesColores: Record<string, { fondo: string; texto: string }> = {
-  alto: { fondo: "#fee2e2", texto: "#b91c1c" },
-  medio: { fondo: "#fef3c7", texto: "#c2410c" },
-  bajo: { fondo: "#dcfce7", texto: "#15803d" }
+const nivelesClases: Record<string, string> = {
+  alto: "badge--danger",
+  medio: "badge--warning",
+  bajo: "badge--success"
+};
+
+const nivelIconos: Record<string, string> = {
+  alto: "ÔÜá",
+  medio: "Ôû│",
+  bajo: "Ô£ô"
 };
 
 type Filters = {
@@ -15,70 +21,96 @@ type Filters = {
   riesgo?: string;
 };
 
+const PAGE_SIZE_OPTIONS = [10, 20, 30, 40];
+
 export function StudentsPage() {
   const [filters, setFilters] = useState<Filters>({});
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const { data: periodos } = useQuery({ queryKey: ["periodos"], queryFn: () => apiClient.getPeriodos() });
   const { data: programas } = useQuery({ queryKey: ["programas"], queryFn: () => apiClient.getProgramas() });
   const { data: niveles } = useQuery({ queryKey: ["niveles"], queryFn: () => apiClient.getNivelesRiesgo() });
 
   const { data: estudiantes, isFetching } = useQuery({
-    queryKey: ["estudiantes", filters],
-    queryFn: () => apiClient.getStudents(filters),
-    placeholderData: []
+    queryKey: ["estudiantes", filters, page, pageSize],
+    queryFn: () =>
+      apiClient.getStudents({
+        ...filters,
+        page,
+        pageSize
+      }),
+    placeholderData: () => ({ items: [], total: 0, page, pageSize })
   });
 
-  const totales = useMemo(() => calcularTotales(estudiantes ?? []), [estudiantes]);
+  const totales = useMemo(() => calcularTotales(estudiantes?.items ?? []), [estudiantes]);
+  const totalEstudiantes = estudiantes?.total ?? 0;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-      <header>
-        <h1 style={{ margin: 0, color: "#111827" }}>Listado de estudiantes</h1>
-        <p style={{ color: "#4b5563", marginTop: "8px" }}>
-          Filtre por programa, periodo o nivel de riesgo para priorizar la atención.
-        </p>
+    <div className="page">
+      <header className="page__header">
+        <h1 className="page__title">Listado de estudiantes</h1>
+        <p className="page__subtitle">Filtre por programa, periodo o nivel de riesgo para priorizar la atenci├│n.</p>
       </header>
 
-      <section style={filtersContainer}>
+      <section className="surface filters-panel">
         <FiltroSelect
-          label="Programa académico"
+          label="Programa acad├®mico"
           value={filters.programa ?? ""}
-          onChange={(value) => setFilters((prev) => ({ ...prev, programa: value ? Number(value) : undefined }))}
+          onChange={(value) => {
+            setFilters((prev) => ({ ...prev, programa: value ? Number(value) : undefined }));
+            setPage(1);
+          }}
           opciones={[{ value: "", label: "Todos" }, ...(programas ?? []).map((p) => ({ value: String(p.id_programa), label: p.nombre }))]}
         />
         <FiltroSelect
           label="Periodo"
           value={filters.periodo ?? ""}
-          onChange={(value) => setFilters((prev) => ({ ...prev, periodo: value ? Number(value) : undefined }))}
+          onChange={(value) => {
+            setFilters((prev) => ({ ...prev, periodo: value ? Number(value) : undefined }));
+            setPage(1);
+          }}
           opciones={[{ value: "", label: "Todos" }, ...(periodos ?? []).map((p) => ({ value: String(p.id_periodo), label: p.nombre }))]}
         />
         <FiltroSelect
           label="Nivel de riesgo"
           value={filters.riesgo ?? ""}
-          onChange={(value) => setFilters((prev) => ({ ...prev, riesgo: value || undefined }))}
+          onChange={(value) => {
+            setFilters((prev) => ({ ...prev, riesgo: value || undefined }));
+            setPage(1);
+          }}
           opciones={[{ value: "", label: "Todos" }, ...(niveles ?? []).map((n) => ({ value: n.nombre, label: n.nombre }))]}
         />
-        <button type="button" onClick={() => setFilters({})} style={buttonStyle}>
+        <button
+          type="button"
+          onClick={() => {
+            setFilters({});
+            setPage(1);
+          }}
+          className="button button--ghost filters-panel__action"
+        >
           Limpiar filtros
         </button>
       </section>
 
-      <section style={cardsGrid}>
+      <section className="summary-grid">
         <ResumenCard titulo="Total" cantidad={totales.total} />
-        <ResumenCard titulo="Riesgo alto" cantidad={totales.alto} colorFondo="#fee2e2" colorTexto="#b91c1c" />
-        <ResumenCard titulo="Riesgo medio" cantidad={totales.medio} colorFondo="#fef3c7" colorTexto="#c2410c" />
-        <ResumenCard titulo="Riesgo bajo" cantidad={totales.bajo} colorFondo="#dcfce7" colorTexto="#15803d" />
+        <ResumenCard titulo="Riesgo alto" cantidad={totales.alto} colorFondo="rgba(239, 68, 68, 0.08)" colorTexto="#b91c1c" />
+        <ResumenCard titulo="Riesgo medio" cantidad={totales.medio} colorFondo="rgba(249, 115, 22, 0.08)" colorTexto="#c2410c" />
+        <ResumenCard titulo="Riesgo bajo" cantidad={totales.bajo} colorFondo="rgba(34, 197, 94, 0.1)" colorTexto="#15803d" />
       </section>
 
-      <section style={tablaContainer}>
-        <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-          <h2 style={{ margin: 0 }}>Resultados</h2>
-          {isFetching && <span style={{ color: "#9ca3af" }}>Cargando...</span>}
+      <section className="surface">
+        <header className="section-header">
+          <div>
+            <h2 className="section-header__title">Resultados</h2>
+            {isFetching && <span className="section-header__meta">Actualizando informaci├│n...</span>}
+          </div>
         </header>
         <div className="table-scroll">
-          <table style={tablaStyle}>
+          <table className="table table--lg table--responsive">
             <thead>
               <tr>
-                <th>Código</th>
+                <th>C├│digo</th>
                 <th>Documento</th>
                 <th>Estudiante</th>
                 <th>Programa</th>
@@ -87,9 +119,9 @@ export function StudentsPage() {
               </tr>
             </thead>
             <tbody>
-              {estudiantes?.map((est) => (
+              {estudiantes?.items.map((est) => (
                 <tr key={est.id_estudiante}>
-                  <td data-label="C��digo">{est.codigo_alumno ?? "-"}</td>
+                  <td data-label="C´┐¢´┐¢digo">{est.codigo_alumno ?? "-"}</td>
                   <td data-label="Documento">{est.dni ?? "-"}</td>
                   <td data-label="Estudiante">{`${est.apellido_paterno ?? ""} ${est.apellido_materno ?? ""}, ${est.nombres ?? ""}`}</td>
                   <td data-label="Programa">{est.programa ?? "-"}</td>
@@ -102,11 +134,20 @@ export function StudentsPage() {
             </tbody>
           </table>
         </div>
-        {estudiantes && estudiantes.length === 0 && (
-          <p style={{ color: "#6b7280", textAlign: "center", marginTop: "16px" }}>
-            No se encontraron estudiantes con los filtros seleccionados.
-          </p>
+        {estudiantes && estudiantes.items.length === 0 && (
+          <p className="empty-message">No se encontraron estudiantes con los filtros seleccionados.</p>
         )}
+        <PaginationControls
+          page={page}
+          pageSize={pageSize}
+          totalItems={totalEstudiantes}
+          onPageChange={(newPage) => setPage(newPage)}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+          isFetching={isFetching}
+        />
       </section>
     </div>
   );
@@ -139,7 +180,7 @@ function PaginationControls({
       </div>
       <div className="table-pagination__actions">
         <label className="field table-pagination__page-size">
-          <span className="field__label">Registros por página</span>
+          <span className="field__label">Registros por p├ígina</span>
           <select
             className="field__control"
             value={pageSize}
@@ -162,7 +203,7 @@ function PaginationControls({
             Anterior
           </button>
           <span className="table-pagination__page-indicator">
-            Página {Math.min(page, totalPages)} de {totalPages}
+            P├ígina {Math.min(page, totalPages)} de {totalPages}
           </span>
           <button
             type="button"
@@ -190,10 +231,12 @@ function formatearPuntaje(valor: StudentItem["puntaje"]) {
 
 function NivelEtiqueta({ nivel }: { nivel: string }) {
   const key = nivel.toLowerCase();
-  const estilos = nivelesColores[key] ?? { fondo: "#e5e7eb", texto: "#374151" };
+  const variant = nivelesClases[key] ?? "";
+  const icon = nivelIconos[key] ?? "ÔÇó";
   return (
-    <span style={{ background: estilos.fondo, color: estilos.texto, padding: "4px 10px", borderRadius: "999px", fontWeight: 600 }}>
-      {nivel}
+    <span className={`badge ${variant}`}>
+      <span aria-hidden>{icon}</span>
+      <span>{nivel}</span>
     </span>
   );
 }
@@ -212,20 +255,20 @@ function calcularTotales(estudiantes: StudentItem[]) {
   );
 }
 
-function ResumenCard({ titulo, cantidad, colorFondo = "#eef2ff", colorTexto = "#3730a3" }: { titulo: string; cantidad: number; colorFondo?: string; colorTexto?: string }) {
+function ResumenCard({ titulo, cantidad, colorFondo = "rgba(37, 99, 235, 0.08)", colorTexto = "#1d4ed8" }: { titulo: string; cantidad: number; colorFondo?: string; colorTexto?: string }) {
   return (
-    <article style={{ background: colorFondo, color: colorTexto, padding: "18px", borderRadius: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
-      <span style={{ fontSize: "0.9rem" }}>{titulo}</span>
-      <strong style={{ fontSize: "2rem" }}>{cantidad}</strong>
+    <article className="summary-card" style={{ background: colorFondo, color: colorTexto }}>
+      <span className="summary-card__title">{titulo}</span>
+      <strong className="summary-card__value">{cantidad}</strong>
     </article>
   );
 }
 
 function FiltroSelect({ label, value, onChange, opciones }: { label: string; value: string | number; onChange: (value: string) => void; opciones: Array<{ value: string; label: string }> }) {
   return (
-    <label style={{ display: "flex", flexDirection: "column", gap: "6px", minWidth: "200px" }}>
-      <span>{label}</span>
-      <select value={value} onChange={(e) => onChange(e.target.value)} style={selectStyle}>
+    <label className="field filters-panel__column">
+      <span className="field__label">{label}</span>
+      <select value={value} onChange={(e) => onChange(e.target.value)} className="field__control">
         {opciones.map((opcion) => (
           <option key={opcion.value} value={opcion.value}>
             {opcion.label}
@@ -235,50 +278,3 @@ function FiltroSelect({ label, value, onChange, opciones }: { label: string; val
     </label>
   );
 }
-
-const filtersContainer: React.CSSProperties = {
-  display: "flex",
-  flexWrap: "wrap",
-  gap: "16px",
-  background: "#fff",
-  padding: "20px",
-  borderRadius: "12px",
-  boxShadow: "0 12px 24px rgba(15, 23, 42, 0.05)"
-};
-
-const selectStyle: React.CSSProperties = {
-  padding: "10px 12px",
-  borderRadius: "8px",
-  border: "1px solid #d1d5db"
-};
-
-const buttonStyle: React.CSSProperties = {
-  padding: "10px 16px",
-  borderRadius: "8px",
-  border: "none",
-  background: "#111827",
-  color: "#fff",
-  cursor: "pointer",
-  alignSelf: "flex-end"
-};
-
-const cardsGrid: React.CSSProperties = {
-  display: "grid",
-  gap: "16px",
-  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"
-};
-
-const tablaContainer: React.CSSProperties = {
-  background: "#fff",
-  padding: "24px",
-  borderRadius: "12px",
-  boxShadow: "0 12px 24px rgba(15, 23, 42, 0.05)",
-  display: "flex",
-  flexDirection: "column"
-};
-
-const tablaStyle: React.CSSProperties = {
-  width: "100%",
-  borderCollapse: "collapse",
-  minWidth: "780px"
-};

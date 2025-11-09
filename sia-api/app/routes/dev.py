@@ -25,6 +25,7 @@ from ..security import hash_password, password_is_strong, password_strength_hint
 router = APIRouter(prefix="/dev", tags=["dev"])
 
 # Guardrail: exige DEV_MODE=true
+DEV_DEFAULT_PASSWORD_HASH = os.getenv("JWT_SECRET")
 DEV_MODE = os.getenv("DEV_MODE", "false").lower() == "true"
 def ensure_dev():
     if not DEV_MODE:
@@ -34,6 +35,12 @@ def ensure_dev():
 # =========================
 # Esquemas Pydantic
 # =========================
+
+class UsuarioFromPersonaCreate(BaseModel):
+    id_persona: int
+    tipo: constr(strip_whitespace=True)  # 'estudiante', 'docente', 'autoridad', 'admin'
+    correo: Optional[EmailStr] = None
+    perfiles: Optional[PerfilesIn] = None
 
 class PersonaIn(BaseModel):
     dni: constr(strip_whitespace=True, min_length=8, max_length=20)
@@ -531,19 +538,209 @@ async def crear_usuario(payload: UsuarioCreate, db: AsyncSession = Depends(get_s
         }
     }}
 
+@router.post("/usuarios/persona", status_code=status.HTTP_201_CREATED)
+async def crear_usuario_desde_persona(
+    payload: UsuarioFromPersonaCreate,
+    db: AsyncSession = Depends(get_session),
+    _=Depends(ensure_dev)
+):
+    # 0) Validar que tengamos un hash por defecto configurado
+    if not DEV_DEFAULT_PASSWORD_HASH:
+        raise HTTPException(
+            status_code=500,
+            detail="Hash por defecto DEV no configurado (DEV_DEFAULT_PASSWORD_HASH)."
+        )
 
-"""
-alertas;
-asistencias;
-bitacora_auditoria;
-calificaciones;
-cursos;
-docentes;
-matriculas;
-permisos;
-puntajes_riesgo;
-roles_permisos;
-sesiones_tutoria;
-trabajos_sincronizacion;
-tutores;
-"""
+    # 1) Verificar que la persona exista
+    persona_row = (await db.execute(
+        text("SELECT id_persona, dni, apellido_paterno, apellido_materno, nombres FROM personas WHERE id_persona=:id"),
+        {"id": payload.id_persona}
+    )).fetchone()
+
+    if not persona_row:
+        raise HTTPException(404, detail="La persona indicada no existe.")
+
+    # 2) Verificar que no tenga ya un usuario asociado
+    existing_user = (await db.execute(
+        text("SELECT id_usuario FROM usuarios WHERE id_persona=:id LIMIT 1"),
+        {"id": payload.id_persona}
+    )).fetchone()
+
+    if existing_user:
+        raise HTTPException(400, detail="Ya existe un usuario asociado a esta persona.")
+
+    # 3) Determinar rol principal según tipo
+    tipo = payload.tipo.lower().strip()
+    if tipo not in ("estudiante", "docente", "autoridad", "admin"):
+        raise HTTPException(400, detail=f"Tipo de usuario no soportado: {payload.tipo}")
+
+    # Mapa simple tipo -> roles
+    if tipo == "estudiante":
+        roles = ["estudiante"]
+    elif tipo == "docente":
+        roles = ["docente"]
+    elif tipo == "autoridad":
+        roles = ["autoridad"]
+    elif tipo == "admin":
+        roles = ["admin"]
+    else:
+        roles = []
+
+    # 4) Correo (puede venir del payload o quedar NULL si solo es para pruebas internas)
+    correo = payload.correo
+
+    # 5) Estado: 'activo' por defecto
+    id_estado = await _estado_to_id(db, "activo")
+
+    # 6) Crear usuario con el hash preconfigurado (sin validar fuerza, ya está hasheado)
+    try:
+        await db.execute(text("""
+            INSERT INTO usuarios (id_persona, correo, contrasenia_hash, id_estado_usuario)
+            VALUES (:idp, :c, :h, :e)
+        """), {
+            "idp": payload.id_persona,
+            "c": correo,
+            "h": DEV_DEFAULT_PASSWORD_HASH,
+            "e": id_estado
+        })
+        await db.commit()
+    except Exception as ex:
+        await db.rollback()
+        raise HTTPException(400, detail=f"No se pudo crear usuario desde persona: {ex}")
+
+    # 7) Obtener id_usuario recién creado
+    user_row = (await db.execute(
+        text("""
+            SELECT id_usuario
+            FROM usuarios
+            WHERE id_persona=:idp
+            ORDER BY id_usuario DESC
+            LIMIT 1
+        """), {"idp": payload.id_persona}
+    )).fetchone()
+
+    if not user_row:
+        raise HTTPException(500, detail="No se pudo recuperar el usuario creado.")
+
+    id_usuario = int(user_row.id_usuario)
+
+    # 8) Asignar roles
+    if roles:
+        await _set_user_roles(db, id_usuario, roles)
+        await db.commit()
+
+    # 9) Crear/actualizar perfil según tipo y perfiles enviados
+    try:
+        if tipo == "estudiante":
+            pe = payload.perfiles.estudiante if (payload.perfiles and payload.perfiles.estudiante) else PerfilEstudianteIn()
+
+            # 1) Verificar si ya existe un estudiante para esta persona
+            row_est = (await db.execute(text("""
+                SELECT id_estudiante, codigo_alumno
+                FROM estudiantes
+                WHERE id_persona = :pid
+                LIMIT 1
+            """), {"pid": payload.id_persona})).fetchone()
+    
+            # 2) Si viene codigo_alumno en el payload, validar unicidad
+            if pe.codigo_alumno:
+                row_codigo = (await db.execute(text("""
+                    SELECT id_estudiante, id_persona
+                    FROM estudiantes
+                    WHERE codigo_alumno = :codigo
+                    LIMIT 1
+                """), {"codigo": pe.codigo_alumno})).fetchone()
+    
+                # Si existe otro estudiante con ese código y pertenece a otra persona → error claro
+                if row_codigo and (not row_est or row_codigo.id_persona != payload.id_persona):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"El código de alumno '{pe.codigo_alumno}' ya está asignado a otra persona (id_persona={row_codigo.id_persona})."
+                    )
+    
+            # 3) Si ya hay estudiante para esta persona → UPDATE
+            if row_est:
+                sets = []
+                params = {"id": row_est.id_estudiante}
+    
+                if pe.id_programa is not None:
+                    sets.append("id_programa = :prog")
+                    params["prog"] = pe.id_programa
+                if pe.anio_ingreso is not None:
+                    sets.append("anio_ingreso = :anio")
+                    params["anio"] = pe.anio_ingreso
+                if pe.id_estado_academico is not None:
+                    sets.append("id_estado_academico = :estado")
+                    params["estado"] = pe.id_estado_academico
+                if pe.codigo_alumno is not None:
+                    sets.append("codigo_alumno = :codigo")
+                    params["codigo"] = pe.codigo_alumno
+    
+                if sets:
+                    await db.execute(
+                        text(f"UPDATE estudiantes SET {', '.join(sets)} WHERE id_estudiante = :id"),
+                        params
+                    )
+    
+            # 4) Si no hay estudiante para esta persona → INSERT nuevo (ya validamos código)
+            else:
+                await db.execute(text("""
+                    INSERT INTO estudiantes (id_persona, id_programa, anio_ingreso, id_estado_academico, codigo_alumno)
+                    VALUES (:pid, :prog, :anio, :estado, :codigo)
+                """), {
+                    "pid": payload.id_persona,
+                    "prog": pe.id_programa,
+                    "anio": pe.anio_ingreso,
+                    "estado": pe.id_estado_academico,
+                    "codigo": pe.codigo_alumno,
+                })
+
+        if tipo == "docente":
+            pd = payload.perfiles.docente if (payload.perfiles and payload.perfiles.docente) else PerfilDocenteIn()
+            await db.execute(SQL_INS_DOCENTE, {
+                "pid": payload.id_persona,
+                "dep": pd.id_departamento,
+                "cat": pd.categoria,
+            })
+
+        if tipo == "autoridad":
+            pa = payload.perfiles.autoridad if (payload.perfiles and payload.perfiles.autoridad) else PerfilAutoridadIn()
+            await db.execute(SQL_INS_AUTORIDAD, {
+                "pid": payload.id_persona,
+                "cargo": pa.id_cargo,
+            })
+
+        await db.commit()
+    except Exception as ex:
+        await db.rollback()
+        raise HTTPException(400, detail=f"No se pudieron vincular los datos de perfil para el tipo '{tipo}': {ex}")
+
+    # 10) Respuesta consolidada (similar a otros endpoints)
+    out = (await db.execute(text("""
+        SELECT u.id_usuario, u.correo, eu.nombre AS estado,
+               COALESCE(GROUP_CONCAT(r.nombre), '') AS roles,
+               p.dni, p.apellido_paterno, p.apellido_materno, p.nombres
+        FROM usuarios u
+        JOIN estados_usuario eu ON eu.id_estado_usuario=u.id_estado_usuario
+        LEFT JOIN usuarios_roles ur ON ur.id_usuario=u.id_usuario
+        LEFT JOIN roles r ON r.id_rol=ur.id_rol
+        JOIN personas p ON p.id_persona=u.id_persona
+        WHERE u.id_usuario=:id
+        GROUP BY u.id_usuario
+    """), {"id": id_usuario})).fetchone()
+
+    return {
+        "ok": True,
+        "data": {
+            "id_usuario": out.id_usuario,
+            "correo": out.correo,
+            "estado": out.estado,
+            "roles": [r for r in (out.roles or "").split(",") if r],
+            "persona": {
+                "dni": out.dni,
+                "apellido_paterno": out.apellido_paterno,
+                "apellido_materno": out.apellido_materno,
+                "nombres": out.nombres
+            }
+        }
+    }
