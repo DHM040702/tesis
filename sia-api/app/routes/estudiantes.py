@@ -10,11 +10,16 @@ from ..schemas import ApiResponse
 
 router = APIRouter(prefix="/estudiantes", tags=["estudiantes"])
 
-@router.get("/", response_model=ApiResponse, dependencies=[Depends(require_roles("admin","autoridad","tutor"))])
+@router.get("/", response_model=ApiResponse, dependencies=[Depends(require_roles("admin","autoridad","tutor","docente"))])
 async def listar(
     programa: int | None = Query(None),
     periodo: int | None = Query(None),
     riesgo: str | None = Query(None),
+    termino: str | None = Query(
+        None,
+        min_length=2,
+        description="Buscar por DNI o nombres del estudiante"
+    ),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=10, le=40, description="Cantidad de estudiantes por página"),
     db: AsyncSession = Depends(get_session)
@@ -41,6 +46,9 @@ async def listar(
     if riesgo:
         filters_sql += " AND nr.nombre=:niv"
         params["niv"] = riesgo
+    if termino:
+        filters_sql += " AND (p.dni LIKE :term OR CONCAT_WS(' ', p.apellido_paterno, p.apellido_materno, p.nombres) LIKE :term)"
+        params["term"] = f"%{termino.strip()}%"
     
     offset = (page - 1) * page_size
     data_query = text(

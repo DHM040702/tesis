@@ -1,16 +1,16 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "../api/client";
-import { ApiTutoriasResponse, ApiUser, StudentItem } from "../types";
+import { ApiTutoriasResponse, ApiUser, StudentItem, TutorAssignmentItem, TutorCatalogItem } from "../types";
 import { useAuth } from "../context/AuthContext";
-import { resolveDashboardVariant } from "../utils/roles";
+import { resolveDashboardVariant, type DashboardVariant } from "../utils/roles";
 
 const opcionesModalidad = [
   { value: 1, label: "Presencial" },
   { value: 2, label: "Virtual" },
-  { value: 3, label: "Telefónica" }
+  { value: 3, label: "Telefonica" }
 ];
 
 type TutoriaForm = {
@@ -21,6 +21,7 @@ type TutoriaForm = {
   tema: string;
   observaciones?: string;
   seguimiento?: string;
+  id_tutor_override?: number;
 };
 
 export function TutoriasPage() {
@@ -30,23 +31,24 @@ export function TutoriasPage() {
   if (variant === "student") {
     return <StudentTutoriasView user={user} />;
   }
-  return <TutorManagementPage />;
+  return <TutorManagementPage variant={variant} />;
 }
 
-function TutorManagementPage() {
+function TutorManagementPage({ variant }: { variant: DashboardVariant }) {
   const queryClient = useQueryClient();
   const { data: periodos } = useQuery({ queryKey: ["periodos"], queryFn: () => apiClient.getPeriodos() });
-  const { register, handleSubmit, reset, watch } = useForm<TutoriaForm>({
+  const { register, handleSubmit, reset, watch, setValue } = useForm<TutoriaForm>({
     defaultValues: {
       id_periodo: undefined,
       id_estudiante: undefined,
       fecha_hora: "",
       id_modalidad: 1,
       tema: "",
-      observaciones: "",
+      observaciones : "",
       seguimiento: ""
     }
   });
+  const isAdminView = variant === "admin";
 
   const rawPeriodo = watch("id_periodo");
   const rawEstudiante = watch("id_estudiante");
@@ -55,12 +57,17 @@ function TutorManagementPage() {
   const modalidadNombre = opcionesModalidad.find((opcion) => opcion.value === modalidadActual)?.label ?? "Presencial";
   const periodoSeleccionado = Number.isFinite(rawPeriodo) ? (rawPeriodo as number) : undefined;
   const estudianteSeleccionado = Number.isFinite(rawEstudiante) ? (rawEstudiante as number) : undefined;
-
-  const { data: asignados } = useQuery({
-    queryKey: ["asignados", periodoSeleccionado],
-    queryFn: () => apiClient.getTutorAssignments(periodoSeleccionado),
-    placeholderData: []
-  });
+  const [studentTerm, setStudentTerm] = useState("");
+  const [studentResults, setStudentResults] = useState<StudentItem[]>([]);
+  const [selectedStudent, setSelectedStudent] = useState<StudentItem | null>(null);
+  const [searchingStudent, setSearchingStudent] = useState(false);
+  const [studentSearchError, setStudentSearchError] = useState<string | null>(null);
+  const [tutorTerm, setTutorTerm] = useState("");
+  const [tutorResults, setTutorResults] = useState<TutorCatalogItem[]>([]);
+  const [selectedTutor, setSelectedTutor] = useState<TutorCatalogItem | null>(null);
+  const [searchingTutor, setSearchingTutor] = useState(false);
+  const [tutorSearchError, setTutorSearchError] = useState<string | null>(null);
+  const [isAssignmentModalOpen, setAssignmentModalOpen] = useState(false);
 
   const { data: tutorias } = useQuery({
     queryKey: ["tutorias", periodoSeleccionado, estudianteSeleccionado],
@@ -71,16 +78,147 @@ function TutorManagementPage() {
       }),
     placeholderData: []
   });
+  const { data: adminAssignments } = useQuery<TutorAssignmentItem[]>({
+    queryKey: ["tutor-assignments", periodoSeleccionado],
+    queryFn: () => apiClient.getTutorAssignments(periodoSeleccionado),
+    enabled: isAdminView && Boolean(periodoSeleccionado),
+    placeholderData: []
+  });
+  const currentAssignment =
+    isAdminView && selectedStudent && Array.isArray(adminAssignments)
+      ? adminAssignments.find((item) => item.id_estudiante === selectedStudent.id_estudiante)
+      : undefined;
+  const assignmentTutor = mapAssignmentToTutorItem(currentAssignment);
+  useEffect(() => {
+    if (!isAdminView) {
+      setSelectedTutor(null);
+      setTutorResults([]);
+      setTutorSearchError(null);
+      setTutorTerm("");
+      return;
+    }
+    if (!selectedStudent) {
+      setSelectedTutor(null);
+      setTutorResults([]);
+      setTutorSearchError(null);
+      setTutorTerm("");
+      return;
+    }
+    if (!selectedTutor && assignmentTutor) {
+      setSelectedTutor(assignmentTutor);
+    }
+  }, [
+    assignmentTutor?.correo,
+    assignmentTutor?.dni,
+    assignmentTutor?.id_tutor,
+    assignmentTutor?.nombre,
+    isAdminView,
+    selectedStudent?.id_estudiante,
+    selectedTutor
+  ]);
 
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
-
-  useEffect(() => {
-    if (!periodoSeleccionado) {
-      queryClient.invalidateQueries({ queryKey: ["asignados"] });
+  const handleStudentSearch = async () => {
+    const term = studentTerm.trim();
+    if (!term) {
+      setStudentSearchError("Ingrese un DNI o nombre.");
+      setStudentResults([]);
+      return;
     }
-  }, [periodoSeleccionado, queryClient]);
+    setSearchingStudent(true);
+    setStudentSearchError(null);
+    try {
+      const response = await apiClient.getStudents({ search: term, page: 1, pageSize: 10 });
+      const items = response.items ?? [];
+      setStudentResults(items);
+      if (items.length === 0) {
+        setStudentSearchError("No se encontraron estudiantes para el termino indicado.");
+      }
+    } catch (err) {
+      setStudentResults([]);
+      setStudentSearchError((err as Error).message);
+    } finally {
+      setSearchingStudent(false);
+    }
+  };
+
+  const handleStudentSelect = (student: StudentItem) => {
+    setSelectedStudent(student);
+    setValue("id_estudiante", student.id_estudiante, { shouldValidate: true });
+    setStudentSearchError(null);
+    if (isAdminView) {
+      setSelectedTutor(null);
+      setTutorResults([]);
+      setTutorSearchError(null);
+      setTutorTerm("");
+    }
+  };
+
+  const handleClearStudent = () => {
+    setSelectedStudent(null);
+    setValue("id_estudiante", undefined);
+    setStudentSearchError(null);
+    if (isAdminView) {
+      setSelectedTutor(null);
+      setTutorResults([]);
+      setTutorSearchError(null);
+      setTutorTerm("");
+    }
+  };
+
+  const handleTutorSearch = async () => {
+    if (!isAdminView) return;
+    const term = tutorTerm.trim();
+    if (!term) {
+      setTutorSearchError("Ingrese un nombre o DNI para buscar.");
+      setTutorResults([]);
+      return;
+    }
+    if (!selectedStudent) {
+      setTutorSearchError("Seleccione un estudiante antes de buscar docentes.");
+      return;
+    }
+    if (!periodoSeleccionado) {
+      setTutorSearchError("Seleccione un periodo académico antes de buscar docentes.");
+      return;
+    }
+    setSearchingTutor(true);
+    setTutorSearchError(null);
+    try {
+      const data = await apiClient.getTutors({ termino: term, limit: 10 });
+      setTutorResults(data);
+      if (data.length === 0) {
+        setTutorSearchError("No se encontraron tutores para el término indicado.");
+      }
+    } catch (err) {
+      setTutorSearchError((err as Error).message);
+      setTutorResults([]);
+    } finally {
+      setSearchingTutor(false);
+    }
+  };
+
+  const handleTutorSelect = (tutor: TutorCatalogItem) => {
+    if (!isAdminView) return;
+    setSelectedTutor(tutor);
+    setTutorSearchError(null);
+    setTutorResults([]);
+    setTutorTerm("");
+  };
+
+  const handleClearTutor = () => {
+    setSelectedTutor(null);
+    setTutorSearchError(null);
+    setTutorTerm("");
+    setTutorResults([]);
+  };
+
+  const handleTutorAssigned = async (tutor: TutorCatalogItem) => {
+    setSelectedTutor(tutor);
+    await queryClient.invalidateQueries({ queryKey: ["tutor-assignments", periodoSeleccionado] });
+  };
 
   const onSubmit = handleSubmit(async (values) => {
     setError(null);
@@ -96,19 +234,24 @@ function TutorManagementPage() {
         id_modalidad: values.id_modalidad,
         tema: values.tema,
         fecha_hora: values.fecha_hora || undefined,
-        observaciones: values.observaciones || undefined,
-        seguimiento: values.seguimiento || undefined
+        observaciones : values.observaciones  || undefined,
+        seguimiento: values.seguimiento || undefined,
+        id_tutor_override: isAdminView ? selectedTutor?.id_tutor : undefined
       });
-      setMensaje("Tutoría registrada correctamente");
+      setMensaje("Tutoria registrada correctamente");
       reset({
         id_modalidad: values.id_modalidad,
         tema: "",
-        observaciones: "",
+        observaciones : "",
         seguimiento: "",
         fecha_hora: "",
         id_estudiante: undefined,
         id_periodo: values.id_periodo
       });
+      setSelectedStudent(null);
+      setStudentResults([]);
+      setStudentTerm("");
+      setStudentSearchError(null);
       queryClient.invalidateQueries({ queryKey: ["tutorias"] });
     } catch (err) {
       setError((err as Error).message);
@@ -119,15 +262,26 @@ function TutorManagementPage() {
 
   return (
     <div className="page page--columns">
+      {isAdminView && (
+        <AssignTutorModal
+          open={isAssignmentModalOpen}
+          onClose={() => setAssignmentModalOpen(false)}
+          student={selectedStudent}
+          periodo={periodoSeleccionado}
+          currentAssignment={currentAssignment}
+          onTutorAssigned={handleTutorAssigned}
+        />
+      )}
       <section className={formCardClass}>
         <header className="page__header page__header--compact">
-          <h1 className="page__title">Registro de tutoría</h1>
-          <p className="page__subtitle">Complete el formulario para registrar la atención brindada al estudiante.</p>
-          <span className="section-header__meta">Modalidad seleccionada: {modalidadNombre}</span>
+          <h1 className="page__title">Registro de tutor?a</h1>
+          <p className="page__subtitle">Complete el formulario para registrar la atenci?n brindada al estudiante.</p>
+          <span className="section-header__meta">Modalidad Seleccionada: {modalidadNombre}</span>
         </header>
         <form onSubmit={onSubmit} className="form-grid">
+          <input type="hidden" {...register("id_estudiante", { valueAsNumber: true, required: true })} />
           <label className="field">
-            <span className="field__label">Periodo académico</span>
+            <span className="field__label">Periodo acad?mico</span>
             <select {...register("id_periodo", { valueAsNumber: true, required: true })} className="field__control">
               <option value="">Seleccione un periodo</option>
               {periodos?.map((periodo) => (
@@ -137,17 +291,155 @@ function TutorManagementPage() {
               ))}
             </select>
           </label>
-          <label className="field">
-            <span className="field__label">Estudiante asignado</span>
-            <select {...register("id_estudiante", { valueAsNumber: true, required: true })} className="field__control">
-              <option value="">Seleccione un estudiante</option>
-              {asignados?.map((est) => (
-                <option key={est.id_estudiante} value={est.id_estudiante}>
-                  {formatearNombreEstudiante(est)}
-                </option>
+          <div className="field field--full student-search">
+            <label className="field__label" htmlFor="student-search-input">
+              Estudiante
+            </label>
+            <div className="student-search__controls">
+              <input
+                id="student-search-input"
+                type="text"
+                className="field__control"
+                placeholder="Ingrese DNI o nombre del estudiante"
+                value={studentTerm}
+                onChange={(event) => setStudentTerm(event.target.value)}
+              />
+              <button type="button" className="button button--ghost" onClick={handleStudentSearch} disabled={searchingStudent}>
+                {searchingStudent ? "Buscando..." : "Buscar"}
+              </button>
+            </div>
+            {studentSearchError && <p className="field__hint field__hint--error">{studentSearchError}</p>}
+            {!studentSearchError && !selectedStudent && <p className="field__hint">Seleccione un estudiante para habilitar el registro.</p>}
+          </div>
+
+          {selectedStudent && (
+            <div className="student-search__selection field field--full">
+              <div>
+                <strong>{formatearNombreStudentItem(selectedStudent)}</strong>
+                <p>{selectedStudent.programa ?? "Sin programa"}</p>
+                {selectedStudent.nivel && <span className="badge">{selectedStudent.nivel}</span>}
+              </div>
+              <button type="button" className="button button--ghost" onClick={handleClearStudent}>
+                Cambiar
+              </button>
+            </div>
+          )}
+
+          {isAdminView && selectedStudent && (
+            <>
+              <div className="field field--full admin-assignment-banner">
+                <div>
+                  <span className="field__label">Asignación de tutor</span>
+                  <p className="field__hint">
+                    {assignmentTutor
+                      ? `Actualmente asignado: ${assignmentTutor.nombre ?? "Tutor sin nombre"}.`
+                      : "El estudiante no tiene un tutor asignado en el periodo seleccionado."}
+                  </p>
+                  {!periodoSeleccionado && (
+                    <p className="field__hint field__hint--error">
+                      Seleccione un periodo académico para gestionar la asignación.
+                    </p>
+                  )}
+                </div>
+                <div className="admin-assignment-banner__actions">
+                  {currentAssignment?.periodo && <span className="badge">{currentAssignment.periodo}</span>}
+                  <button
+                    type="button"
+                    className="button button--secondary"
+                    onClick={() => setAssignmentModalOpen(true)}
+                    disabled={!periodoSeleccionado}
+                  >
+                    Gestionar asignación
+                  </button>
+                </div>
+              </div>
+
+              <div className="field field--full tutor-picker">
+                <div className="tutor-picker__header">
+                  <span className="field__label">Docente responsable de esta sesión</span>
+                  <p className="field__hint">
+                    Use este buscador para registrar la sesión con un docente específico. Si no selecciona uno se usará
+                    la asignación vigente.
+                  </p>
+                </div>
+                {selectedTutor ? (
+                  <div className="tutor-picker__selection">
+                    <div>
+                      <strong>{selectedTutor.nombre ?? "Tutor sin nombre"}</strong>
+                      <p className="field__hint">
+                        {selectedTutor.dni ? `${selectedTutor.dni} · ` : ""}
+                        {selectedTutor.correo ?? "Sin correo"}
+                      </p>
+                    </div>
+                    <button type="button" className="button button--ghost" onClick={handleClearTutor}>
+                      Quitar
+                    </button>
+                  </div>
+                ) : (
+                  <p className="field__hint">
+                    {assignmentTutor
+                      ? `Se usará ${assignmentTutor.nombre ?? "el tutor asignado"} si no realiza cambios.`
+                      : "Asigne un tutor al estudiante o busque un docente para registrar esta sesión."}
+                  </p>
+                )}
+                <div className="field__inline tutor-picker__controls">
+                  <input
+                    type="text"
+                    className="field__control"
+                    placeholder="Buscar por nombre o DNI"
+                    value={tutorTerm}
+                    onChange={(event) => setTutorTerm(event.target.value)}
+                    disabled={!periodoSeleccionado || !selectedStudent}
+                  />
+                  <button
+                    type="button"
+                    className="button button--ghost"
+                    onClick={handleTutorSearch}
+                    disabled={!periodoSeleccionado || !selectedStudent || searchingTutor}
+                  >
+                    {searchingTutor ? "Buscando..." : "Buscar docentes"}
+                  </button>
+                </div>
+                {tutorSearchError && <p className="field__hint field__hint--error">{tutorSearchError}</p>}
+
+                {tutorResults.length > 0 && !selectedTutor && (
+                  <div className="tutor-picker__results">
+                    {tutorResults.map((tutor) => (
+                      <article key={tutor.id_tutor} className="tutor-picker__result">
+                        <div>
+                          <strong>{tutor.nombre ?? "Tutor sin nombre"}</strong>
+                          <p className="field__hint">
+                            {tutor.dni ? `${tutor.dni} · ` : ""}
+                            {tutor.correo ?? "Sin correo"}
+                          </p>
+                        </div>
+                        <button type="button" className="button button--primary" onClick={() => handleTutorSelect(tutor)}>
+                          Usar en esta sesión
+                        </button>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {studentResults.length > 0 && !selectedStudent && (
+            <div className="student-search__results field field--full">
+              {studentResults.map((student) => (
+                <article key={student.id_estudiante} className="student-search__result">
+                  <div>
+                    <strong>{formatearNombreStudentItem(student)}</strong>
+                    <p>{student.programa ?? "Sin programa"}</p>
+                    {student.nivel && <span className="badge">{student.nivel}</span>}
+                  </div>
+                  <button type="button" className="button button--primary" onClick={() => handleStudentSelect(student)}>
+                    Seleccionar
+                  </button>
+                </article>
               ))}
-            </select>
-          </label>
+            </div>
+          )}
           <label className="field">
             <span className="field__label">Fecha y hora</span>
             <input type="datetime-local" {...register("fecha_hora")} className="field__control" />
@@ -168,7 +460,8 @@ function TutorManagementPage() {
           </label>
           <label className="field field--full">
             <span className="field__label">Observaciones</span>
-            <textarea {...register("observaciones")} className="field__control field__control--textarea" rows={3} />
+            <textarea {...register("observaciones ")} 
+            className="field__control field__control--textarea" rows={3} />
           </label>
           <label className="field field--full">
             <span className="field__label">Seguimiento sugerido</span>
@@ -180,7 +473,7 @@ function TutorManagementPage() {
 
           <div className="form-actions field--full">
             <button type="submit" disabled={enviando} className="button button--primary">
-              {enviando ? "Guardando..." : "Registrar tutoría"}
+              {enviando ? "Guardando..." : "Registrar tutor?a"}
             </button>
           </div>
         </form>
@@ -198,8 +491,196 @@ function TutorManagementPage() {
             <TimelineItem key={tutoria.id_tutoria} tutoria={tutoria} />
           ))}
         </div>
-        {tutorias && tutorias.length === 0 && <p className="empty-message">Registre una tutoría para visualizarla aquí.</p>}
+        {tutorias && tutorias.length === 0 && <p className="empty-message">Registre una tutor?a para visualizarla aqu?.</p>}
       </section>
+    </div>
+  );
+}
+
+type AssignTutorModalProps = {
+  open: boolean;
+  onClose: () => void;
+  student: StudentItem | null;
+  periodo?: number;
+  currentAssignment?: TutorAssignmentItem;
+  onTutorAssigned: (tutor: TutorCatalogItem) => Promise<void> | void;
+};
+
+function AssignTutorModal({
+  open,
+  onClose,
+  student,
+  periodo,
+  currentAssignment,
+  onTutorAssigned
+}: AssignTutorModalProps) {
+  const [term, setTerm] = useState("");
+  const [results, setResults] = useState<TutorCatalogItem[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [modalSelection, setModalSelection] = useState<TutorCatalogItem | null>(null);
+  const [modalError, setModalError] = useState<string | null>(null);
+  const [modalMessage, setModalMessage] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setTerm("");
+    setResults([]);
+    setModalError(null);
+    setModalMessage(null);
+    setModalSelection(mapAssignmentToTutorItem(currentAssignment));
+  }, [currentAssignment?.id_tutor, open]);
+
+  if (!open) {
+    return null;
+  }
+
+  const studentName = student ? formatearNombreStudentItem(student) : "Seleccione un estudiante";
+  const periodoLabel = currentAssignment?.periodo ?? (periodo ? `Periodo ${periodo}` : "Sin periodo seleccionado");
+
+  const handleOverlayClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (event.target === event.currentTarget) {
+      onClose();
+    }
+  };
+
+  const handleSearch = async () => {
+    const value = term.trim();
+    if (!value) {
+      setModalError("Ingrese un nombre o DNI para buscar.");
+      setResults([]);
+      return;
+    }
+    setSearching(true);
+    setModalError(null);
+    setModalMessage(null);
+    try {
+      const data = await apiClient.getTutors({ termino: value, limit: 10 });
+      setResults(data);
+      if (data.length === 0) {
+        setModalError("No se encontraron tutores para el término indicado.");
+      }
+    } catch (err) {
+      setModalError((err as Error).message);
+      setResults([]);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const handleAssign = async () => {
+    if (!student || !periodo) {
+      setModalError("Seleccione el periodo y el estudiante en el formulario para continuar.");
+      return;
+    }
+    if (!modalSelection) {
+      setModalError("Seleccione un tutor antes de guardar.");
+      return;
+    }
+    setSaving(true);
+    setModalError(null);
+    try {
+      await apiClient.assignTutor({
+        id_estudiante: student.id_estudiante,
+        id_periodo: periodo,
+        id_tutor: modalSelection.id_tutor
+      });
+      setModalMessage("Asignación guardada.");
+      await onTutorAssigned(modalSelection);
+    } catch (err) {
+      setModalError((err as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="role-modal__overlay" role="dialog" aria-modal="true" onClick={handleOverlayClick}>
+      <div className="role-modal assignment-modal" role="document">
+        <header className="assignment-modal__header">
+          <div>
+            <h2>Asignar tutor</h2>
+            <p className="field__hint">El tutor asignado se usará como referencia predeterminada para las tutorías.</p>
+          </div>
+          <button type="button" className="role-modal__close" onClick={onClose} aria-label="Cerrar ventana">
+            &times;
+          </button>
+        </header>
+        <div className="assignment-modal__meta">
+          <p>
+            <strong>Estudiante:</strong> {studentName}
+          </p>
+          <p>
+            <strong>Periodo:</strong> {periodoLabel}
+          </p>
+          {currentAssignment?.tutor && (
+            <p className="assignment-modal__current">
+              <strong>Tutor actual:</strong> {currentAssignment.tutor}
+            </p>
+          )}
+        </div>
+        <div className="assignment-modal__body">
+          <div className="assignment-modal__search">
+            <input
+              type="text"
+              className="field__control"
+              placeholder="Buscar docente por nombre o DNI"
+              value={term}
+              onChange={(event) => setTerm(event.target.value)}
+            />
+            <button type="button" className="button button--ghost" onClick={handleSearch} disabled={searching}>
+              {searching ? "Buscando..." : "Buscar"}
+            </button>
+          </div>
+          {modalSelection && (
+            <div className="assignment-modal__selection">
+              <div>
+                <strong>{modalSelection.nombre ?? "Tutor sin nombre"}</strong>
+                <p className="field__hint">
+                  {modalSelection.dni ? `${modalSelection.dni} · ` : ""}
+                  {modalSelection.correo ?? "Sin correo"}
+                </p>
+              </div>
+              <button type="button" className="button button--ghost" onClick={() => setModalSelection(null)}>
+                Limpiar
+              </button>
+            </div>
+          )}
+          {modalError && <p className="field__hint field__hint--error">{modalError}</p>}
+          {modalMessage && <p className="field__hint field__hint--success">{modalMessage}</p>}
+          {results.length > 0 && (
+            <div className="assignment-modal__results">
+              {results.map((tutor) => (
+                <article key={tutor.id_tutor} className="assignment-modal__result">
+                  <div>
+                    <strong>{tutor.nombre ?? "Tutor sin nombre"}</strong>
+                    <p className="field__hint">
+                      {tutor.dni ? `${tutor.dni} · ` : ""}
+                      {tutor.correo ?? "Sin correo"}
+                    </p>
+                  </div>
+                  <button type="button" className="button button--primary" onClick={() => setModalSelection(tutor)}>
+                    Seleccionar
+                  </button>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="assignment-modal__actions">
+          <button type="button" className="button button--ghost" onClick={onClose}>
+            Cerrar
+          </button>
+          <button
+            type="button"
+            className="button button--primary"
+            onClick={handleAssign}
+            disabled={!student || !periodo || !modalSelection || saving}
+          >
+            {saving ? "Guardando..." : "Guardar asignación"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -209,15 +690,15 @@ function StudentTutoriasView({ user }: { user: ApiUser | null }) {
   const supportEmail = "soporte@unasam.edu.pe";
   const reminders = [
     { title: "Coordina tu agenda", description: "Confirma con tu tutor las fechas pactadas y actualiza tus compromisos en un calendario personal." },
-    { title: "Revisa tus acuerdos", description: "Luego de cada sesión, valida que los acuerdos y compromisos queden registrados por tu tutor." },
-    { title: "Pide ayuda a tiempo", description: "Si detectas nuevas alertas académicas o personales, notifícalo para recibir apoyo oportuno." }
+    { title: "Revisa tus acuerdos", description: "Luego de cada sesi?n, valida que los acuerdos y compromisos queden registrados por tu tutor." },
+    { title: "Pide ayuda a tiempo", description: "Si detectas nuevas alertas acad?micas o personales, notif?calo para recibir apoyo oportuno." }
   ];
 
   return (
     <div className="page">
       <header className="page__header">
-        <h1 className="page__title">Mis tutorías</h1>
-        <p className="page__subtitle">Consulta el estado del acompañamiento registrado por tu tutor.</p>
+        <h1 className="page__title">Mis tutor?as</h1>
+        <p className="page__subtitle">Consulta el estado del acompa?amiento registrado por tu tutor.</p>
       </header>
 
       <section className="surface hero-card">
@@ -225,7 +706,7 @@ function StudentTutoriasView({ user }: { user: ApiUser | null }) {
           <div>
             <p className="page__subtitle">Panel del estudiante</p>
             <h2 className="hero-card__headline">Hola, {firstName}</h2>
-            <p className="hero-card__copy">Tus tutorías serán registradas por tu tutor. Aquí verás un resumen cuando existan sesiones publicadas.</p>
+            <p className="hero-card__copy">Tus tutor?as ser?n registradas por tu tutor. Aqu? ver?s un resumen cuando existan sesiones publicadas.</p>
           </div>
           <div className="hero-card__actions">
             <Link to="/" className="button button--ghost">
@@ -241,12 +722,12 @@ function StudentTutoriasView({ user }: { user: ApiUser | null }) {
       <section className="surface">
         <header className="section-header">
           <div>
-            <h2 className="section-header__title">Historial de tutorías</h2>
-            <p className="section-header__subtitle">Solicita a tu tutor que confirme los registros después de cada encuentro.</p>
+            <h2 className="section-header__title">Historial de tutor?as</h2>
+            <p className="section-header__subtitle">Solicita a tu tutor que confirme los registros despu?s de cada encuentro.</p>
           </div>
         </header>
         <p className="empty-message">
-          Aún no hay tutorías visibles desde tu perfil. Comunícate con tu tutor si necesitas una constancia del seguimiento.
+          A?n no hay tutor?as visibles desde tu perfil. Comun?cate con tu tutor si necesitas una constancia del seguimiento.
         </p>
       </section>
 
@@ -262,21 +743,26 @@ function StudentTutoriasView({ user }: { user: ApiUser | null }) {
   );
 }
 
-type AsignadoEstudiante = StudentItem & { estudiante?: string | null };
-
-function formatearNombreEstudiante(estudiante: AsignadoEstudiante) {
-  if (estudiante.estudiante) {
-    const nombre = estudiante.estudiante.trim();
-    return `${estudiante.dni ?? ""}${nombre ? ` ´┐¢´┐¢ ${nombre}` : ""}`;
-  }
-
-  const partes = [estudiante.apellido_paterno, estudiante.apellido_materno, estudiante.nombres]
+function formatearNombreStudentItem(student: StudentItem) {
+  const partes = [student.apellido_paterno, student.apellido_materno, student.nombres]
     .filter(Boolean)
     .join(" ")
     .trim();
-  const nombreVisible = partes || "Sin nombre";
-  const prefijo = estudiante.dni ? `${estudiante.dni} ´┐¢´┐¢ ` : "";
+  const nombreVisible = partes || student.codigo_alumno || "Sin nombre";
+  const prefijo = student.dni ? `${student.dni} - ` : "";
   return `${prefijo}${nombreVisible}`;
+}
+
+function mapAssignmentToTutorItem(assignment?: TutorAssignmentItem): TutorCatalogItem | null {
+  if (!assignment?.id_tutor) {
+    return null;
+  }
+  return {
+    id_tutor: assignment.id_tutor,
+    nombre: assignment.tutor ?? null,
+    dni: assignment.tutor_dni ?? undefined,
+    correo: assignment.tutor_correo ?? undefined
+  };
 }
 
 function TimelineItem({ tutoria }: { tutoria: ApiTutoriasResponse }) {
@@ -289,7 +775,7 @@ function TimelineItem({ tutoria }: { tutoria: ApiTutoriasResponse }) {
         <span>{tutoria.periodo}</span>
         <span>Tutor: {tutoria.tutor}</span>
       </div>
-      <p className="timeline__body">{tutoria.observaciones ?? "Sin observaciones registradas."}</p>
+      <p className="timeline__body">{tutoria.observaciones  ?? "Sin observaciones  registradas."}</p>
       {tutoria.seguimiento && (
         <p className="timeline__body">
           <strong>Seguimiento:</strong> {tutoria.seguimiento}
@@ -313,3 +799,12 @@ function formatearFecha(fecha?: string) {
     minute: "2-digit"
   });
 }
+
+
+
+
+
+
+
+
+

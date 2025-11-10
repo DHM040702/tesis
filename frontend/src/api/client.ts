@@ -10,7 +10,8 @@ import {
   RiskLevelItem,
   RiskSummaryItem,
   StudentItem,
-  TutorAssignmentItem
+  TutorAssignmentItem,
+  TutorCatalogItem
 } from "../types";
 
 const RAW_API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000/api";
@@ -25,6 +26,10 @@ type Programa = { id_programa: number; nombre: string };
 type NivelRiesgo = { id_nivel_riesgo: number; nombre: string; descripcion?: string };
 type TutorAssignment = Pick<StudentItem, "id_estudiante" | "dni" | "programa" | "periodo"> & {
   estudiante?: string | null;
+  id_tutor?: number;
+  tutor?: string | null;
+  tutor_dni?: string | null;
+  tutor_correo?: string | null;
 };
 
 type CreateTutoriaPayload = {
@@ -35,6 +40,7 @@ type CreateTutoriaPayload = {
   fecha_hora?: string;
   observaciones?: string;
   seguimiento?: string;
+  id_tutor_override?: number;
 };
 
 
@@ -242,6 +248,7 @@ class ApiClient {
     programa?: number;
     periodo?: number;
     riesgo?: string;
+    search?: string;
     page?: number;
     pageSize?: number;
   }): Promise<PaginatedResponse<StudentItem>> {
@@ -254,6 +261,9 @@ class ApiClient {
     }
     if (params.riesgo) {
       query.append("riesgo", params.riesgo);
+    }
+    if (params.search && params.search.trim()) {
+      query.append("termino", params.search.trim());
     }
     if (params.page) {
       query.append("page", String(params.page));
@@ -292,8 +302,32 @@ class ApiClient {
       periodo: item.periodo ?? undefined,
       programa: item.programa ?? undefined,
       estudiante: item.estudiante ?? undefined,
-      dni: item.dni ?? undefined
+      dni: item.dni ?? undefined,
+      id_tutor: item.id_tutor ?? undefined,
+      tutor: item.tutor ?? undefined,
+      tutor_dni: item.tutor_dni ?? undefined,
+      tutor_correo: item.tutor_correo ?? undefined
     }));
+  }
+
+  async getTutors(params?: { termino?: string; limit?: number }): Promise<TutorCatalogItem[]> {
+    const query = new URLSearchParams();
+    if (params?.termino) {
+      query.append("termino", params.termino);
+    }
+    if (params?.limit) {
+      query.append("limit", String(params.limit));
+    }
+    const endpoint = query.size ? `/tutorias/tutores/catalogo?${query.toString()}` : "/tutorias/tutores/catalogo";
+    const res = await this.request<ApiResponse<TutorCatalogItem[]>>(endpoint);
+    return res.data ?? [];
+  }
+
+  async assignTutor(payload: { id_estudiante: number; id_periodo: number; id_tutor: number }): Promise<ApiResponse<unknown>> {
+    return this.request<ApiResponse<unknown>>("/tutorias/tutores/asignar", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
   }
 
   async getTutorias(params: { id_estudiante?: number; id_periodo?: number }): Promise<ApiTutoriasResponse[]> {

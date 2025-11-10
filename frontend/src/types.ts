@@ -66,6 +66,10 @@ export type TutorAssignmentItem = {
   estudiante: string;
   programa: string;
   periodo: string;
+  id_tutor?: number;
+  tutor?: string | null;
+  tutor_dni?: string | null;
+  tutor_correo?: string | null;
 };
 
 export type StudentItem = {
@@ -92,4 +96,12 @@ export type ApiTutoriasResponse = {
   observaciones?: string;
   seguimiento?: string;
   tutor: string;
+};
+
+export type TutorCatalogItem = {
+  id_tutor: number;
+  id_usuario?: number;
+  nombre: string | null;
+  dni?: string | null;
+  correo?: string | null;
 };
