@@ -44,7 +44,7 @@ CREATE TABLE `alertas` (
   CONSTRAINT `alertas_ibfk_2` FOREIGN KEY (`id_periodo`) REFERENCES `periodos_academicos` (`id_periodo`) ON DELETE RESTRICT,
   CONSTRAINT `alertas_ibfk_3` FOREIGN KEY (`id_tipo_alerta`) REFERENCES `tipos_alerta` (`id_tipo_alerta`) ON DELETE RESTRICT,
   CONSTRAINT `alertas_ibfk_4` FOREIGN KEY (`id_severidad`) REFERENCES `severidades` (`id_severidad`) ON DELETE RESTRICT
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -66,7 +66,7 @@ CREATE TABLE `asignaciones_tutoria` (
   CONSTRAINT `fk_asig_est` FOREIGN KEY (`id_estudiante`) REFERENCES `estudiantes` (`id_estudiante`) ON DELETE RESTRICT,
   CONSTRAINT `fk_asig_per` FOREIGN KEY (`id_periodo`) REFERENCES `periodos_academicos` (`id_periodo`) ON DELETE RESTRICT,
   CONSTRAINT `fk_asig_tutor` FOREIGN KEY (`id_tutor`) REFERENCES `tutores` (`id_tutor`) ON DELETE RESTRICT
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -88,7 +88,7 @@ CREATE TABLE `asistencias` (
   KEY `ix_asistencias_matricula_fecha` (`id_matricula`,`fecha`),
   CONSTRAINT `asistencias_ibfk_1` FOREIGN KEY (`id_matricula`) REFERENCES `matriculas` (`id_matricula`) ON DELETE CASCADE,
   CONSTRAINT `asistencias_ibfk_2` FOREIGN KEY (`id_fuente_asistencia`) REFERENCES `fuentes_asistencia` (`id_fuente_asistencia`) ON DELETE RESTRICT
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -111,7 +111,7 @@ CREATE TABLE `autoridades` (
   KEY `ix_autoridades_cargo` (`id_cargo`),
   CONSTRAINT `fk_autoridades_cargo` FOREIGN KEY (`id_cargo`) REFERENCES `cargos` (`id_cargo`) ON DELETE RESTRICT,
   CONSTRAINT `fk_autoridades_persona` FOREIGN KEY (`id_persona`) REFERENCES `personas` (`id_persona`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -132,7 +132,7 @@ CREATE TABLE `bitacora_auditoria` (
   PRIMARY KEY (`id_bitacora`),
   KEY `id_usuario` (`id_usuario`),
   CONSTRAINT `bitacora_auditoria_ibfk_1` FOREIGN KEY (`id_usuario`) REFERENCES `usuarios` (`id_usuario`) ON DELETE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -149,11 +149,12 @@ CREATE TABLE `calificaciones` (
   `nota_final` decimal(5,2) DEFAULT NULL,
   `actualizado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id_calificacion`),
+  UNIQUE KEY `uq_calif_matricula` (`id_matricula`),
   KEY `ix_calificaciones_matricula` (`id_matricula`),
   CONSTRAINT `calificaciones_ibfk_1` FOREIGN KEY (`id_matricula`) REFERENCES `matriculas` (`id_matricula`) ON DELETE CASCADE,
   CONSTRAINT `calificaciones_chk_1` CHECK (((`nota_parcial` is null) or ((`nota_parcial` >= 0) and (`nota_parcial` <= 20)))),
   CONSTRAINT `calificaciones_chk_2` CHECK (((`nota_final` is null) or ((`nota_final` >= 0) and (`nota_final` <= 20))))
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=46600 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -218,8 +219,9 @@ CREATE TABLE `cursos` (
   `creditos` tinyint NOT NULL,
   PRIMARY KEY (`id_curso`),
   UNIQUE KEY `codigo` (`codigo`),
+  UNIQUE KEY `uq_curso_codigo` (`codigo`),
   CONSTRAINT `cursos_chk_1` CHECK ((`creditos` > 0))
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=46603 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -238,7 +240,7 @@ CREATE TABLE `docentes` (
   PRIMARY KEY (`id_docente`),
   UNIQUE KEY `uq_docente_persona` (`id_persona`),
   CONSTRAINT `fk_docentes_persona` FOREIGN KEY (`id_persona`) REFERENCES `personas` (`id_persona`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -319,12 +321,13 @@ CREATE TABLE `estudiantes` (
   PRIMARY KEY (`id_estudiante`),
   UNIQUE KEY `uq_estudiante_persona` (`id_persona`),
   UNIQUE KEY `codigo_alumno` (`codigo_alumno`),
+  UNIQUE KEY `uq_estudiante_codigo` (`codigo_alumno`),
   KEY `id_programa` (`id_programa`),
   KEY `id_estado_academico` (`id_estado_academico`),
   CONSTRAINT `estudiantes_ibfk_1` FOREIGN KEY (`id_persona`) REFERENCES `personas` (`id_persona`) ON DELETE RESTRICT,
   CONSTRAINT `estudiantes_ibfk_2` FOREIGN KEY (`id_programa`) REFERENCES `programas` (`id_programa`) ON DELETE SET NULL,
   CONSTRAINT `estudiantes_ibfk_3` FOREIGN KEY (`id_estado_academico`) REFERENCES `estados_academicos` (`id_estado_academico`) ON DELETE RESTRICT
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3925 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -340,7 +343,7 @@ CREATE TABLE `facultades` (
   `nombre` varchar(120) COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id_facultad`),
   UNIQUE KEY `codigo` (`codigo`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -390,11 +393,11 @@ DROP TABLE IF EXISTS `fuentes_datos`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `fuentes_datos` (
-  `id_fuente_datos` tinyint NOT NULL,
+  `id_fuente_datos` tinyint NOT NULL AUTO_INCREMENT,
   `nombre` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id_fuente_datos`),
-  UNIQUE KEY `nombre` (`nombre`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  UNIQUE KEY `uq_fuente_nombre` (`nombre`)
+) ENGINE=InnoDB AUTO_INCREMENT=113 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -434,6 +437,26 @@ CREATE TABLE `items_fse` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `labels_periodo`
+--
+
+DROP TABLE IF EXISTS `labels_periodo`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `labels_periodo` (
+  `id_estudiante` bigint NOT NULL,
+  `id_periodo` int NOT NULL,
+  `y` tinyint(1) NOT NULL,
+  `causa` varchar(30) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `fecha_corte` date NOT NULL DEFAULT (curdate()),
+  PRIMARY KEY (`id_estudiante`,`id_periodo`),
+  KEY `fk_labels_per` (`id_periodo`),
+  CONSTRAINT `fk_labels_est` FOREIGN KEY (`id_estudiante`) REFERENCES `estudiantes` (`id_estudiante`),
+  CONSTRAINT `fk_labels_per` FOREIGN KEY (`id_periodo`) REFERENCES `periodos_academicos` (`id_periodo`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `matriculas`
 --
 
@@ -460,7 +483,7 @@ CREATE TABLE `matriculas` (
   CONSTRAINT `matriculas_ibfk_2` FOREIGN KEY (`id_curso`) REFERENCES `cursos` (`id_curso`) ON DELETE RESTRICT,
   CONSTRAINT `matriculas_ibfk_3` FOREIGN KEY (`id_periodo`) REFERENCES `periodos_academicos` (`id_periodo`) ON DELETE RESTRICT,
   CONSTRAINT `matriculas_ibfk_4` FOREIGN KEY (`id_estado_matricula`) REFERENCES `estados_matricula` (`id_estado_matricula`) ON DELETE RESTRICT
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=46609 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -538,8 +561,9 @@ CREATE TABLE `periodos_academicos` (
   `id_periodo` int NOT NULL AUTO_INCREMENT,
   `nombre` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id_periodo`),
-  UNIQUE KEY `nombre` (`nombre`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  UNIQUE KEY `nombre` (`nombre`),
+  UNIQUE KEY `uq_periodo_nombre` (`nombre`)
+) ENGINE=InnoDB AUTO_INCREMENT=119 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -555,7 +579,7 @@ CREATE TABLE `permisos` (
   `descripcion` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id_permiso`),
   UNIQUE KEY `clave` (`clave`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -579,7 +603,7 @@ CREATE TABLE `personas` (
   KEY `id_genero` (`id_genero`),
   KEY `ix_personas_apellidos` (`apellido_paterno`,`apellido_materno`,`nombres`),
   CONSTRAINT `personas_ibfk_1` FOREIGN KEY (`id_genero`) REFERENCES `generos` (`id_genero`) ON DELETE RESTRICT
-) ENGINE=InnoDB AUTO_INCREMENT=32 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3951 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -598,7 +622,7 @@ CREATE TABLE `programas` (
   UNIQUE KEY `codigo` (`codigo`),
   KEY `id_facultad` (`id_facultad`),
   CONSTRAINT `programas_ibfk_1` FOREIGN KEY (`id_facultad`) REFERENCES `facultades` (`id_facultad`) ON DELETE RESTRICT
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -627,7 +651,7 @@ CREATE TABLE `puntajes_riesgo` (
   CONSTRAINT `puntajes_riesgo_ibfk_3` FOREIGN KEY (`id_nivel_riesgo`) REFERENCES `niveles_riesgo` (`id_nivel_riesgo`) ON DELETE RESTRICT,
   CONSTRAINT `puntajes_riesgo_ibfk_4` FOREIGN KEY (`id_metodo_riesgo`) REFERENCES `metodos_riesgo` (`id_metodo_riesgo`) ON DELETE RESTRICT,
   CONSTRAINT `puntajes_riesgo_chk_1` CHECK (((`puntaje` >= 0) and (`puntaje` <= 100)))
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -678,7 +702,7 @@ CREATE TABLE `respuestas_fse` (
   CONSTRAINT `respuestas_fse_ibfk_1` FOREIGN KEY (`id_ficha`) REFERENCES `fichas_socioeconomicas` (`id_ficha`) ON DELETE CASCADE,
   CONSTRAINT `respuestas_fse_ibfk_2` FOREIGN KEY (`id_item`) REFERENCES `items_fse` (`id_item`) ON DELETE RESTRICT,
   CONSTRAINT `respuestas_fse_ibfk_3` FOREIGN KEY (`id_opcion`) REFERENCES `opciones_item_fse` (`id_opcion`) ON DELETE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=35 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -694,7 +718,7 @@ CREATE TABLE `roles` (
   `descripcion` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id_rol`),
   UNIQUE KEY `nombre` (`nombre`)
-) ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -804,11 +828,11 @@ CREATE TABLE `trabajos_sincronizacion` (
   `fin` datetime DEFAULT NULL,
   `detalles` text COLLATE utf8mb4_unicode_ci,
   PRIMARY KEY (`id_trabajo`),
-  KEY `id_fuente_datos` (`id_fuente_datos`),
   KEY `id_estado_trabajo` (`id_estado_trabajo`),
-  CONSTRAINT `trabajos_sincronizacion_ibfk_1` FOREIGN KEY (`id_fuente_datos`) REFERENCES `fuentes_datos` (`id_fuente_datos`) ON DELETE RESTRICT,
+  KEY `trabajos_sincronizacion_ibfk_1_idx` (`id_fuente_datos`),
+  CONSTRAINT `trabajos_sincronizacion_ibfk_1` FOREIGN KEY (`id_fuente_datos`) REFERENCES `fuentes_asistencia` (`id_fuente_asistencia`),
   CONSTRAINT `trabajos_sincronizacion_ibfk_2` FOREIGN KEY (`id_estado_trabajo`) REFERENCES `estados_trabajo` (`id_estado_trabajo`) ON DELETE RESTRICT
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=110 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -855,7 +879,7 @@ CREATE TABLE `tutorias` (
   CONSTRAINT `tutorias_ibfk_1` FOREIGN KEY (`id_estudiante`) REFERENCES `estudiantes` (`id_estudiante`) ON DELETE RESTRICT,
   CONSTRAINT `tutorias_ibfk_2` FOREIGN KEY (`id_tutor`) REFERENCES `tutores` (`id_tutor`) ON DELETE RESTRICT,
   CONSTRAINT `tutorias_ibfk_3` FOREIGN KEY (`id_modalidad_tutoria`) REFERENCES `modalidades_tutoria` (`id_modalidad_tutoria`) ON DELETE RESTRICT
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -878,7 +902,7 @@ CREATE TABLE `usuarios` (
   KEY `id_estado_usuario` (`id_estado_usuario`),
   CONSTRAINT `usuarios_ibfk_1` FOREIGN KEY (`id_persona`) REFERENCES `personas` (`id_persona`) ON DELETE RESTRICT,
   CONSTRAINT `usuarios_ibfk_2` FOREIGN KEY (`id_estado_usuario`) REFERENCES `estados_usuario` (`id_estado_usuario`) ON DELETE RESTRICT
-) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -927,6 +951,21 @@ SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = @saved_cs_client;
 
 --
+-- Temporary view structure for view `v_desercion_academica`
+--
+
+DROP TABLE IF EXISTS `v_desercion_academica`;
+/*!50001 DROP VIEW IF EXISTS `v_desercion_academica`*/;
+SET @saved_cs_client     = @@character_set_client;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50001 CREATE VIEW `v_desercion_academica` AS SELECT 
+ 1 AS `id_estudiante`,
+ 1 AS `id_periodo`,
+ 1 AS `periodo`,
+ 1 AS `deserta`*/;
+SET character_set_client = @saved_cs_client;
+
+--
 -- Temporary view structure for view `v_periodo_anterior`
 --
 
@@ -937,6 +976,19 @@ SET @saved_cs_client     = @@character_set_client;
 /*!50001 CREATE VIEW `v_periodo_anterior` AS SELECT 
  1 AS `id_actual`,
  1 AS `id_anterior`*/;
+SET character_set_client = @saved_cs_client;
+
+--
+-- Temporary view structure for view `v_periodo_siguiente`
+--
+
+DROP TABLE IF EXISTS `v_periodo_siguiente`;
+/*!50001 DROP VIEW IF EXISTS `v_periodo_siguiente`*/;
+SET @saved_cs_client     = @@character_set_client;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50001 CREATE VIEW `v_periodo_siguiente` AS SELECT 
+ 1 AS `id_actual`,
+ 1 AS `id_siguiente`*/;
 SET character_set_client = @saved_cs_client;
 
 --
@@ -1006,6 +1058,298 @@ SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = @saved_cs_client;
 
 --
+-- Temporary view structure for view `vw_dataset_modelo_notas`
+--
+
+DROP TABLE IF EXISTS `vw_dataset_modelo_notas`;
+/*!50001 DROP VIEW IF EXISTS `vw_dataset_modelo_notas`*/;
+SET @saved_cs_client     = @@character_set_client;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50001 CREATE VIEW `vw_dataset_modelo_notas` AS SELECT 
+ 1 AS `codigo_alumno`,
+ 1 AS `periodo`,
+ 1 AS `promedio`,
+ 1 AS `deserta`*/;
+SET character_set_client = @saved_cs_client;
+
+--
+-- Dumping events for database 'sia_unasam'
+--
+
+--
+-- Dumping routines for database 'sia_unasam'
+--
+/*!50003 DROP PROCEDURE IF EXISTS `sp_generar_alertas_periodo` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_generar_alertas_periodo`(IN p_id_periodo INT)
+BEGIN
+  DECLARE v_tipo_asistencia TINYINT;
+  DECLARE v_tipo_nota TINYINT;
+  DECLARE v_tipo_combinado TINYINT;
+  DECLARE v_tipo_falta_tutoria TINYINT;
+  DECLARE v_sev_baja TINYINT;
+  DECLARE v_sev_media TINYINT;
+  DECLARE v_sev_alta TINYINT;
+
+  SELECT id_tipo_alerta INTO v_tipo_asistencia FROM tipos_alerta WHERE nombre='asistencia';
+  SELECT id_tipo_alerta INTO v_tipo_nota FROM tipos_alerta WHERE nombre='nota';
+  SELECT id_tipo_alerta INTO v_tipo_combinado FROM tipos_alerta WHERE nombre='combinado';
+  SELECT id_tipo_alerta INTO v_tipo_falta_tutoria FROM tipos_alerta WHERE nombre='falta_tutoria';
+
+  SELECT id_severidad INTO v_sev_baja FROM severidades WHERE nombre='baja';
+  SELECT id_severidad INTO v_sev_media FROM severidades WHERE nombre='media';
+  SELECT id_severidad INTO v_sev_alta FROM severidades WHERE nombre='alta';
+
+  -- Asistencia < 70%
+  INSERT INTO alertas (id_estudiante, id_periodo, id_tipo_alerta, id_severidad, mensaje)
+  SELECT
+    a.id_estudiante,
+    p_id_periodo,
+    v_tipo_asistencia,
+    CASE
+      WHEN a.asistencia_pct < 50 THEN v_sev_alta
+      WHEN a.asistencia_pct < 60 THEN v_sev_media
+      ELSE v_sev_baja
+    END,
+    CONCAT('Asistencia baja: ', ROUND(a.asistencia_pct,1), '%')
+  FROM v_asistencia_periodo a
+  LEFT JOIN alertas al ON al.id_estudiante=a.id_estudiante AND al.id_periodo=p_id_periodo
+                        AND al.id_tipo_alerta=v_tipo_asistencia
+  WHERE a.id_periodo=p_id_periodo
+    AND a.asistencia_pct < 70
+    AND al.id_alerta IS NULL;
+
+  -- Promedio < 11
+  INSERT INTO alertas (id_estudiante, id_periodo, id_tipo_alerta, id_severidad, mensaje)
+  SELECT
+    pr.id_estudiante,
+    p_id_periodo,
+    v_tipo_nota,
+    CASE
+      WHEN pr.promedio < 8 THEN v_sev_alta
+      WHEN pr.promedio < 10 THEN v_sev_media
+      ELSE v_sev_baja
+    END,
+    CONCAT('Promedio bajo: ', ROUND(pr.promedio,2))
+  FROM v_promedio_periodo pr
+  LEFT JOIN alertas al ON al.id_estudiante=pr.id_estudiante AND al.id_periodo=p_id_periodo
+                        AND al.id_tipo_alerta=v_tipo_nota
+  WHERE pr.id_periodo=p_id_periodo
+    AND pr.promedio < 11
+    AND al.id_alerta IS NULL;
+
+  -- Score < 50
+  INSERT INTO alertas (id_estudiante, id_periodo, id_tipo_alerta, id_severidad, mensaje)
+  SELECT
+    r.id_estudiante,
+    p_id_periodo,
+    v_tipo_combinado,
+    v_sev_alta,
+    CONCAT('Riesgo alto: score ', r.puntaje)
+  FROM puntajes_riesgo r
+  LEFT JOIN alertas al ON al.id_estudiante=r.id_estudiante AND al.id_periodo=p_id_periodo
+                        AND al.id_tipo_alerta=v_tipo_combinado
+  WHERE r.id_periodo=p_id_periodo
+    AND r.puntaje < 50
+    AND al.id_alerta IS NULL;
+
+  -- Riesgo medio/alto sin tutoría 14 días
+  INSERT INTO alertas (id_estudiante, id_periodo, id_tipo_alerta, id_severidad, mensaje)
+  SELECT
+    r.id_estudiante,
+    p_id_periodo,
+    v_tipo_falta_tutoria,
+    v_sev_media,
+    'Riesgo sin tutoría en 14 días'
+  FROM puntajes_riesgo r
+  JOIN niveles_riesgo nr ON nr.id_nivel_riesgo=r.id_nivel_riesgo AND nr.nombre IN ('medio','alto')
+  LEFT JOIN sesiones_tutoria st
+    ON st.id_estudiante=r.id_estudiante
+   AND st.fecha_hora >= DATE_SUB(CURRENT_DATE(), INTERVAL 14 DAY)
+  LEFT JOIN alertas al ON al.id_estudiante=r.id_estudiante AND al.id_periodo=p_id_periodo
+                        AND al.id_tipo_alerta=v_tipo_falta_tutoria
+  WHERE r.id_periodo=p_id_periodo
+    AND st.id_sesion IS NULL
+    AND al.id_alerta IS NULL;
+
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 DROP PROCEDURE IF EXISTS `sp_recalcular_ficha_fse` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_recalcular_ficha_fse`(IN p_id_ficha BIGINT)
+BEGIN
+  DECLARE v_total INT DEFAULT 0;
+  DECLARE v_id_clasificacion TINYINT DEFAULT NULL;
+
+  UPDATE respuestas_fse r
+  JOIN fichas_socioeconomicas f ON f.id_ficha = r.id_ficha
+  JOIN items_fse i ON i.id_item = r.id_item
+  LEFT JOIN opciones_item_fse o ON o.id_opcion = r.id_opcion
+  SET r.puntos =
+    CASE
+      WHEN i.id_tipo_item = 1 THEN IFNULL(o.puntos,0)
+      WHEN i.codigo = 'PROM' THEN IFNULL(ROUND(LEAST(GREATEST(r.valor_numero,0),20) * 1),0)
+      WHEN i.codigo = 'CARG' THEN
+        CASE
+          WHEN r.valor_numero IS NULL OR r.valor_numero <= 0 THEN 0
+          WHEN r.valor_numero BETWEEN 1 AND 2 THEN 16
+          ELSE 20
+        END
+      WHEN i.codigo = 'DEPE' THEN
+        CASE
+          WHEN r.valor_numero IS NULL THEN 0
+          WHEN r.valor_numero = 1 THEN 10
+          WHEN r.valor_numero = 2 THEN 14
+          ELSE 18
+        END
+      WHEN i.codigo = 'CRMI' THEN
+        CASE
+          WHEN r.valor_numero IS NULL THEN 0
+          WHEN r.valor_numero = 0 THEN 16
+          WHEN r.valor_numero BETWEEN 1 AND 15 THEN 10
+          ELSE 5
+        END
+      WHEN i.codigo = 'CRAP' THEN
+        CASE
+          WHEN r.valor_numero IS NULL THEN 0
+          WHEN r.valor_numero >= 22 THEN 20
+          WHEN r.valor_numero BETWEEN 10 AND 21 THEN 12
+          ELSE 6
+        END
+      WHEN i.codigo = 'SIFE' THEN
+        CASE
+          WHEN r.valor_numero IS NULL THEN 0
+          WHEN r.valor_numero <= 1000 THEN 14
+          WHEN r.valor_numero BETWEEN 1001 AND 2000 THEN 10
+          ELSE 6
+        END
+      WHEN i.codigo = 'PENS' THEN
+        CASE
+          WHEN r.valor_numero IS NULL THEN 0
+          WHEN r.valor_numero = 0 THEN 20
+          WHEN r.valor_numero BETWEEN 1 AND 300 THEN 12
+          ELSE 6
+        END
+      ELSE 0
+    END
+  WHERE r.id_ficha = p_id_ficha;
+
+  SELECT IFNULL(SUM(puntos),0) INTO v_total
+  FROM respuestas_fse WHERE id_ficha = p_id_ficha;
+
+  SELECT c.id_clasificacion INTO v_id_clasificacion
+  FROM clasificaciones_fse c
+  WHERE v_total BETWEEN c.puntos_min AND c.puntos_max
+  LIMIT 1;
+
+  UPDATE fichas_socioeconomicas
+  SET total_puntos = v_total,
+      id_clasificacion = v_id_clasificacion
+  WHERE id_ficha = p_id_ficha;
+
+  UPDATE respuestas_fse r
+  JOIN items_fse i ON i.id_item = r.id_item AND i.codigo='CLAS'
+  JOIN clasificaciones_fse c ON c.id_clasificacion = v_id_clasificacion
+  SET r.valor_texto = c.nombre, r.puntos = 0
+  WHERE r.id_ficha = p_id_ficha;
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 DROP PROCEDURE IF EXISTS `sp_recalcular_riesgo_periodo` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_recalcular_riesgo_periodo`(IN p_id_periodo INT)
+BEGIN
+  /* 1) Base: alumnos con matrícula en el periodo */
+  DROP TEMPORARY TABLE IF EXISTS tmp_base;
+  CREATE TEMPORARY TABLE tmp_base
+  ENGINE=Memory
+  AS
+  SELECT DISTINCT m.id_estudiante
+  FROM matriculas m
+  WHERE m.id_periodo = p_id_periodo;
+
+  /* 2) Features 1-a-1 por (alumno, periodo) */
+  DROP TEMPORARY TABLE IF EXISTS tmp_feats;
+  CREATE TEMPORARY TABLE tmp_feats
+  ENGINE=Memory
+  AS
+  SELECT
+    b.id_estudiante,
+    p_id_periodo AS id_periodo,
+    COALESCE(vp.promedio, 0)             AS promedio,
+    COALESCE(va.asistencia_pct, 100.0)   AS asistencia_pct,
+    COALESCE(f.total_puntos, 0)          AS fse_puntos
+  FROM tmp_base b
+  LEFT JOIN v_promedio_periodo   vp ON vp.id_estudiante = b.id_estudiante AND vp.id_periodo = p_id_periodo
+  LEFT JOIN v_asistencia_periodo va ON va.id_estudiante = b.id_estudiante AND va.id_periodo = p_id_periodo
+  LEFT JOIN fichas_socioeconomicas f ON f.id_estudiante = b.id_estudiante AND f.id_periodo = p_id_periodo;
+
+  /* 3) Upsert a puntajes_riesgo (requiere UNIQUE(id_estudiante,id_periodo)) */
+  INSERT INTO puntajes_riesgo
+    (id_estudiante, id_periodo, puntaje, id_nivel_riesgo, id_metodo_riesgo, factores_json, creado_en)
+  SELECT
+    id_estudiante,
+    id_periodo,
+    ROUND( (promedio*5) + (asistencia_pct*0.3) + (LEAST(fse_puntos, 100)*0.2), 2 ) AS puntaje,
+    CASE
+      WHEN ( (promedio*5) + (asistencia_pct*0.3) + (LEAST(fse_puntos,100)*0.2) ) >= 70 THEN 1
+      WHEN ( (promedio*5) + (asistencia_pct*0.3) + (LEAST(fse_puntos,100)*0.2) ) >= 50 THEN 2
+      ELSE 3
+    END AS id_nivel_riesgo,
+    1 AS id_metodo_riesgo,
+    /* Si tu versión no soporta JSON_OBJECT, cambia por CONCAT con texto plano */
+    JSON_OBJECT('promedio', promedio, 'asistencia', asistencia_pct, 'fse', fse_puntos) AS factores_json,
+    NOW()
+  FROM tmp_feats
+  ON DUPLICATE KEY UPDATE
+    puntaje        = VALUES(puntaje),
+    id_nivel_riesgo= VALUES(id_nivel_riesgo),
+    id_metodo_riesgo=VALUES(id_metodo_riesgo),
+    factores_json  = VALUES(factores_json),
+    creado_en      = NOW();
+
+  /* 4) Limpieza */
+  DROP TEMPORARY TABLE IF EXISTS tmp_feats;
+  DROP TEMPORARY TABLE IF EXISTS tmp_base;
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+
+--
 -- Final view structure for view `v_asistencia_periodo`
 --
 
@@ -1042,6 +1386,24 @@ SET character_set_client = @saved_cs_client;
 /*!50001 SET collation_connection      = @saved_col_connection */;
 
 --
+-- Final view structure for view `v_desercion_academica`
+--
+
+/*!50001 DROP VIEW IF EXISTS `v_desercion_academica`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v_desercion_academica` AS select `e`.`id_estudiante` AS `id_estudiante`,`pa`.`id_periodo` AS `id_periodo`,`pa`.`nombre` AS `periodo`,(case when (not exists(select 1 from `matriculas` `m2` where ((`m2`.`id_estudiante` = `e`.`id_estudiante`) and (`m2`.`id_periodo` = (select min(`p2`.`id_periodo`) from `periodos_academicos` `p2` where (`p2`.`id_periodo` > `pa`.`id_periodo`)))))) then 1 else 0 end) AS `deserta` from ((`estudiantes` `e` join `matriculas` `m` on((`m`.`id_estudiante` = `e`.`id_estudiante`))) join `periodos_academicos` `pa` on((`pa`.`id_periodo` = `m`.`id_periodo`))) group by `e`.`id_estudiante`,`pa`.`id_periodo` */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
+
+--
 -- Final view structure for view `v_periodo_anterior`
 --
 
@@ -1060,6 +1422,24 @@ SET character_set_client = @saved_cs_client;
 /*!50001 SET collation_connection      = @saved_col_connection */;
 
 --
+-- Final view structure for view `v_periodo_siguiente`
+--
+
+/*!50001 DROP VIEW IF EXISTS `v_periodo_siguiente`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v_periodo_siguiente` AS select `p2`.`id_periodo` AS `id_actual`,`p1`.`id_periodo` AS `id_siguiente` from ((`v_periodo_anterior` `v` join `periodos_academicos` `p1` on((`p1`.`id_periodo` = `v`.`id_actual`))) join `periodos_academicos` `p2` on((`p2`.`id_periodo` = `v`.`id_anterior`))) */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
+
+--
 -- Final view structure for view `v_promedio_periodo`
 --
 
@@ -1072,7 +1452,7 @@ SET character_set_client = @saved_cs_client;
 /*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
-/*!50001 VIEW `v_promedio_periodo` AS select `m`.`id_estudiante` AS `id_estudiante`,`m`.`id_periodo` AS `id_periodo`,avg(`ca`.`nota_final`) AS `promedio` from (`matriculas` `m` left join `calificaciones` `ca` on((`ca`.`id_matricula` = `m`.`id_matricula`))) group by `m`.`id_estudiante`,`m`.`id_periodo` */;
+/*!50001 VIEW `v_promedio_periodo` AS select `m`.`id_estudiante` AS `id_estudiante`,`m`.`id_periodo` AS `id_periodo`,avg(`c`.`nota_final`) AS `promedio` from (`matriculas` `m` join `calificaciones` `c` on((`c`.`id_matricula` = `m`.`id_matricula`))) where (`c`.`nota_final` is not null) group by `m`.`id_estudiante`,`m`.`id_periodo` */;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
@@ -1112,6 +1492,24 @@ SET character_set_client = @saved_cs_client;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
+
+--
+-- Final view structure for view `vw_dataset_modelo_notas`
+--
+
+/*!50001 DROP VIEW IF EXISTS `vw_dataset_modelo_notas`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `vw_dataset_modelo_notas` AS select `e`.`codigo_alumno` AS `codigo_alumno`,`pa`.`nombre` AS `periodo`,`vp`.`promedio` AS `promedio`,`vd`.`deserta` AS `deserta` from ((((`v_promedio_periodo` `vp` join `matriculas` `m` on(((`m`.`id_estudiante` = `vp`.`id_estudiante`) and (`m`.`id_periodo` = `vp`.`id_periodo`)))) join `periodos_academicos` `pa` on((`pa`.`id_periodo` = `vp`.`id_periodo`))) join `estudiantes` `e` on((`e`.`id_estudiante` = `vp`.`id_estudiante`))) join `v_desercion_academica` `vd` on(((`vd`.`id_estudiante` = `vp`.`id_estudiante`) and (`vd`.`id_periodo` = `vp`.`id_periodo`)))) where (`vp`.`promedio` is not null) */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -1122,4 +1520,4 @@ SET character_set_client = @saved_cs_client;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-10-31 12:05:17
+-- Dump completed on 2025-11-09 19:51:21

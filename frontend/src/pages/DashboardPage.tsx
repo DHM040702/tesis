@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useId } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import { apiClient } from "../api/client";
 import { ApiUser, RiskSummaryItem } from "../types";
 import { useAuth } from "../context/AuthContext";
+import { resolveDashboardVariant, DashboardVariant } from "../utils/roles";
 
 type Filters = {
   periodo?: number;
@@ -12,7 +14,11 @@ type Filters = {
 };
 
 type RiskStats = ReturnType<typeof calcularEstadisticas>;
-type DashboardVariant = "admin" | "tutor" | "student";
+type RoleModalItem = {
+  label: string;
+  value: string;
+  helper?: string;
+};
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -27,22 +33,9 @@ export function DashboardPage() {
   return <AdminDashboard />;
 }
 
-function resolveDashboardVariant(roles?: string[]): DashboardVariant {
-  const normalized = (roles ?? []).map((r) => r.toLowerCase());
-  if (normalized.some((role) => role === "admin" || role === "autoridad")) {
-    return "admin";
-  }
-  if (normalized.some((role) => role === "tutor" || role === "docente")) {
-    return "tutor";
-  }
-  if (normalized.includes("estudiante")) {
-    return "student";
-  }
-  return "admin";
-}
-
 function AdminDashboard() {
   const [filters, setFilters] = useState<Filters>({});
+  const [showAdminModal, setShowAdminModal] = useState(false);
   const { data: periodos } = useQuery({
     queryKey: ["periodos"],
     queryFn: () => apiClient.getPeriodos()
@@ -69,7 +62,51 @@ function AdminDashboard() {
   });
 
   const stats = useMemo(() => calcularEstadisticas(resumen ?? []), [resumen]);
+  const handleScrollToDetail = useCallback(() => {
+    document.getElementById("detalle-riesgo")?.scrollIntoView({ behavior: "smooth" });
+  }, []);
+  const adminInsights = useMemo<RoleModalItem[]>(() => {
+    const programasActivos = new Set(
+      (resumen ?? [])
+        .map((item) => item.programa)
+        .filter((programa): programa is string => Boolean(programa))
+    ).size;
+    const registrosOrdenados = (resumen ?? [])
+      .map((item) => item.creado_en)
+      .filter(Boolean)
+      .map((value) => dayjs(value))
+      .sort((a, b) => b.valueOf() - a.valueOf());
+    const ultimaActualizacion = registrosOrdenados.length ? registrosOrdenados[0].format("DD/MM/YYYY HH:mm") : "Sin registros";
+    const periodoSeleccionado = filters.periodo
+      ? periodos?.find((periodo) => periodo.id_periodo === filters.periodo)?.nombre ?? `ID ${filters.periodo}`
+      : "Periodo sin seleccionar";
+    const ejemploCritico = resumen?.find((item) => item.nivel.toLowerCase().includes("alto"))?.nombre_visible ?? "Sin casos";
+
+    return [
+      {
+        label: "Casos criticos",
+        value: stats.altos.toString(),
+        helper: stats.altos > 0 ? `Ejemplo destacado: ${ejemploCritico}` : "Sin estudiantes en riesgo alto"
+      },
+      {
+        label: "Programas monitoreados",
+        value: programasActivos.toString(),
+        helper: programasActivos > 0 ? "Programas con datos disponibles" : "Cargue registros para este periodo"
+      },
+      {
+        label: "Ultima actualizacion",
+        value: ultimaActualizacion,
+        helper: periodoSeleccionado
+      }
+    ];
+  }, [filters.periodo, periodos, resumen, stats.altos]);
   const canDownload = Boolean(resumen?.length);
+  const closeAdminModalAndScroll = useCallback(() => {
+    setShowAdminModal(false);
+    window.setTimeout(() => {
+      handleScrollToDetail();
+    }, 150);
+  }, [handleScrollToDetail]);
 
   const handleDownload = useCallback(() => {
     if (!resumen?.length) return;
@@ -120,12 +157,11 @@ function AdminDashboard() {
           <button type="button" className="button button--ghost" onClick={handleDownload} disabled={!canDownload}>
             Descargar CSV
           </button>
-          <button
-            type="button"
-            className="button button--primary"
-            onClick={() => document.getElementById("detalle-riesgo")?.scrollIntoView({ behavior: "smooth" })}
-          >
+          <button type="button" className="button button--ghost" onClick={handleScrollToDetail}>
             Ver detalle de cohortes
+          </button>
+          <button type="button" className="button button--primary" onClick={() => setShowAdminModal(true)}>
+            Alertas prioritarias
           </button>
         </div>
       </section>
@@ -217,11 +253,29 @@ function AdminDashboard() {
         </div>
         {resumen?.length === 0 && <p className="empty-message">No hay resultados para los filtros seleccionados.</p>}
       </section>
+      <RoleModal
+        open={showAdminModal}
+        onClose={() => setShowAdminModal(false)}
+        title="Alertas prioritarias"
+        description="Revise los indicadores clave antes de tomar decisiones operativas."
+        items={adminInsights}
+        footer={
+          <>
+            <button type="button" className="button button--ghost" onClick={handleDownload} disabled={!canDownload}>
+              Descargar CSV
+            </button>
+            <button type="button" className="button button--primary" onClick={closeAdminModalAndScroll}>
+              Ir al detalle
+            </button>
+          </>
+        }
+      />
     </div>
   );
 }
 
 function TutorDashboard() {
+  const [showTutorModal, setShowTutorModal] = useState(false);
   const { data: asignados = [], isFetching: loadingAsignados, error: asignadosError } = useQuery({
     queryKey: ["tutor-dashboard", "asignados"],
     queryFn: () => apiClient.getTutorAssignments(),
@@ -254,6 +308,26 @@ function TutorDashboard() {
       registradas
     };
   }, [asignados, tutorias]);
+  const tutorModalItems = useMemo<RoleModalItem[]>(() => {
+    const proximaTutoria = upcomingTutorias[0];
+    return [
+      {
+        label: "Estudiantes activos",
+        value: tutorStats.asignados.toString(),
+        helper: `${tutorStats.programas} programas acompanados`
+      },
+      {
+        label: "Sesiones pendientes",
+        value: tutorStats.pendientes.toString(),
+        helper: `${upcomingTutorias.length} agendadas`
+      },
+      {
+        label: "Proxima tutoria",
+        value: proximaTutoria ? dayjs(proximaTutoria.fecha_hora).format("DD MMM YYYY HH:mm") : "Sin programar",
+        helper: proximaTutoria ? proximaTutoria.estudiante : "Registre una nueva sesion"
+      }
+    ];
+  }, [tutorStats, upcomingTutorias]);
 
   return (
     <div className="page">
@@ -278,6 +352,9 @@ function TutorDashboard() {
             <Link to="/estudiantes" className="button button--ghost">
               Ver estudiantes
             </Link>
+            <button type="button" className="button button--ghost" onClick={() => setShowTutorModal(true)}>
+              Ver prioridades
+            </button>
           </div>
         </div>
       </section>
@@ -351,6 +428,23 @@ function TutorDashboard() {
           !tutoriasError && <p className="empty-message">No hay tutorías programadas para los próximos días.</p>
         )}
       </section>
+      <RoleModal
+        open={showTutorModal}
+        onClose={() => setShowTutorModal(false)}
+        title="Prioridades del tutor"
+        description="Identifique rapidamente que atenciones no pueden esperar."
+        items={tutorModalItems}
+        footer={
+          <>
+            <Link to="/tutorias" className="button button--primary" onClick={() => setShowTutorModal(false)}>
+              Registrar tutor��a
+            </Link>
+            <Link to="/estudiantes" className="button button--ghost" onClick={() => setShowTutorModal(false)}>
+              Ver estudiantes
+            </Link>
+          </>
+        }
+      />
     </div>
   );
 }
@@ -358,6 +452,28 @@ function TutorDashboard() {
 function StudentDashboard({ user }: { user: ApiUser | null }) {
   const firstName = (user?.persona?.nombres ?? user?.correo ?? "Estudiante").split(" ")[0];
   const roles = user?.roles?.join(", ") || "Sin rol asignado";
+  const [showStudentModal, setShowStudentModal] = useState(false);
+  const studentModalItems = useMemo<RoleModalItem[]>(() => {
+    const correo = user?.correo ?? "Sin correo registrado";
+    const documento = user?.persona?.dni ?? "Sin documento";
+    return [
+      {
+        label: "Rol activo",
+        value: roles,
+        helper: "Define los accesos dentro del sistema"
+      },
+      {
+        label: "Documento",
+        value: documento,
+        helper: "Verifique que coincida con su ficha"
+      },
+      {
+        label: "Correo institucional",
+        value: correo,
+        helper: "Revise este buzon para recibir alertas"
+      }
+    ];
+  }, [roles, user]);
 
   return (
     <div className="page">
@@ -377,6 +493,9 @@ function StudentDashboard({ user }: { user: ApiUser | null }) {
             <Link to="/tutorias" className="button button--primary">
               Ver tutorías
             </Link>
+            <button type="button" className="button button--ghost" onClick={() => setShowStudentModal(true)}>
+              Recordatorios
+            </button>
             <a className="button button--ghost" href="mailto:soporte@unasam.edu.pe">
               Contactar soporte
             </a>
@@ -403,6 +522,23 @@ function StudentDashboard({ user }: { user: ApiUser | null }) {
           <StudentCard titulo="Bienestar" descripcion="Solicita orientación adicional cuando detectes necesidades personales." />
         </div>
       </section>
+      <RoleModal
+        open={showStudentModal}
+        onClose={() => setShowStudentModal(false)}
+        title="Recordatorios personales"
+        description="Valide su informacion antes de cada sesion para agilizar la atencion."
+        items={studentModalItems}
+        footer={
+          <>
+            <Link to="/tutorias" className="button button--primary" onClick={() => setShowStudentModal(false)}>
+              Ver tutorias
+            </Link>
+            <a className="button button--ghost" href="mailto:soporte@unasam.edu.pe" onClick={() => setShowStudentModal(false)}>
+              Contactar soporte
+            </a>
+          </>
+        }
+      />
     </div>
   );
 }
@@ -521,5 +657,63 @@ function StudentCard({ titulo, descripcion }: { titulo: string; descripcion: str
       <span className="summary-card__title">{titulo}</span>
       <p className="stat-card__description">{descripcion}</p>
     </article>
+  );
+}
+
+type RoleModalProps = {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  description: string;
+  items: RoleModalItem[];
+  footer?: ReactNode;
+};
+
+function RoleModal({ open, onClose, title, description, items, footer }: RoleModalProps) {
+  const titleId = useId();
+
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose, open]);
+
+  if (!open) {
+    return null;
+  }
+
+  const handleOverlayClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (event.target === event.currentTarget) {
+      onClose();
+    }
+  };
+
+  return (
+    <div className="role-modal__overlay" role="dialog" aria-modal="true" aria-labelledby={titleId} onClick={handleOverlayClick}>
+      <div className="role-modal" role="document">
+        <header className="role-modal__header">
+          <h2 id={titleId}>{title}</h2>
+          <p>{description}</p>
+          <button type="button" className="role-modal__close" onClick={onClose} aria-label="Cerrar ventana">
+            &times;
+          </button>
+        </header>
+        <div className="role-modal__body">
+          {items.map((item) => (
+            <article key={item.label} className="role-modal__item">
+              <span className="role-modal__item-label">{item.label}</span>
+              <strong className="role-modal__item-value">{item.value}</strong>
+              {item.helper && <span className="role-modal__item-helper">{item.helper}</span>}
+            </article>
+          ))}
+        </div>
+        {footer && <div className="role-modal__footer">{footer}</div>}
+      </div>
+    </div>
   );
 }
