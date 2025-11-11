@@ -78,8 +78,6 @@ SQL_REVOKE_ALL_FOR_USER = text("""
 async def login(payload: LoginIn, request: Request, db: AsyncSession = Depends(get_session)):
     dump = payload.model_dump()
     dump["correo"] = str(payload.correo)
-    print(f"[auth.login] URL destino: {request.url}")
-    print(f"[auth.login] Payload recibido: {dump}")
     # 1) buscar usuario
     row = (await db.execute(SQL_USER_BY_EMAIL, {"c": payload.correo})).fetchone()
     if not row:
@@ -153,6 +151,8 @@ async def refresh_token(payload: RefreshIn, request: Request, db: AsyncSession =
         WHERE u.id_usuario=:uid
         GROUP BY u.id_usuario
         """), {"uid": uid})).fetchone()
+    if not uinfo:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
     email = uinfo.correo
     roles = [r for r in (uinfo.roles or "").split(",") if r]
 

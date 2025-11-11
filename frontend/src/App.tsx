@@ -8,11 +8,19 @@ import { useAuth } from "./context/AuthContext";
 import { Layout } from "./components/Layout";
 
 export default function App() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="app-loading">
+        <p>Restaurando sesión...</p>
+      </div>
+    );
+  }
 
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
+      <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />} />
       <Route
         path="/"
         element={

@@ -11,6 +11,7 @@ import { ApiUser } from "../types";
 
 type AuthContextShape = {
   isAuthenticated: boolean;
+  isLoading: boolean;
   accessToken: string | null;
   refreshToken: string | null;
   user: ApiUser | null;
@@ -28,67 +29,84 @@ type AuthProviderProps = {
 };
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
-  const [accessToken, setAccessToken] = useState<string | null>(
-    () => localStorage.getItem(ACCESS_KEY)
-  );
-  const [refreshToken, setRefreshToken] = useState<string | null>(
-    () => localStorage.getItem(REFRESH_KEY)
-  );
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [refreshToken, setRefreshToken] = useState<string | null>(null);
   const [user, setUser] = useState<ApiUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const token = localStorage.getItem(ACCESS_KEY);
-    const refresh = localStorage.getItem(REFRESH_KEY);
-    if (token && refresh) {
-      apiClient.setTokens({ accessToken: token, refreshToken: refresh });
-      apiClient
-        .getMe()
-        .then(setUser)
-        .catch(() => {
-          setAccessToken(null);
-          setRefreshToken(null);
-          localStorage.removeItem(ACCESS_KEY);
-          localStorage.removeItem(REFRESH_KEY);
-        });
-    }
-  }, []);
-
-  const login = useCallback(async (correo: string, contrasenia: string) => {
-    const { access_token, refresh_token } = await apiClient.login({
-      correo,
-      contrasenia
-    });
-    setAccessToken(access_token);
-    setRefreshToken(refresh_token);
-    localStorage.setItem(ACCESS_KEY, access_token);
-    localStorage.setItem(REFRESH_KEY, refresh_token);
-    apiClient.setTokens({ accessToken: access_token, refreshToken: refresh_token });
-    const profile = await apiClient.getMe();
-    setUser(profile);
-  }, []);
-
-  const logout = useCallback(async () => {
-    if (refreshToken) {
-      await apiClient.logout(refreshToken);
-    }
+  const clearSession = useCallback(() => {
     setAccessToken(null);
     setRefreshToken(null);
     setUser(null);
     apiClient.setTokens({ accessToken: null, refreshToken: null });
     localStorage.removeItem(ACCESS_KEY);
     localStorage.removeItem(REFRESH_KEY);
-  }, [refreshToken]);
+  }, []);
+
+  useEffect(() => {
+    const token = localStorage.getItem(ACCESS_KEY);
+    const refresh = localStorage.getItem(REFRESH_KEY);
+    if (!token || !refresh) {
+      clearSession();
+      setIsLoading(false);
+      return;
+    }
+    setAccessToken(token);
+    setRefreshToken(refresh);
+    apiClient.setTokens({ accessToken: token, refreshToken: refresh });
+    apiClient
+      .getMe()
+      .then((profile) => {
+        setUser(profile);
+      })
+      .catch(() => {
+        clearSession();
+      })
+      .finally(() => setIsLoading(false));
+  }, [clearSession]);
+
+  const login = useCallback(async (correo: string, contrasenia: string) => {
+    const { access_token, refresh_token } = await apiClient.login({
+      correo,
+      contrasenia
+    });
+    try {
+      apiClient.setTokens({ accessToken: access_token, refreshToken: refresh_token });
+      const profile = await apiClient.getMe();
+      setAccessToken(access_token);
+      setRefreshToken(refresh_token);
+      localStorage.setItem(ACCESS_KEY, access_token);
+      localStorage.setItem(REFRESH_KEY, refresh_token);
+      setUser(profile);
+    } catch (error) {
+      apiClient.setTokens({ accessToken: null, refreshToken: null });
+      clearSession();
+      throw error;
+    }
+  }, [clearSession]);
+
+  const logout = useCallback(async () => {
+    if (refreshToken) {
+      try {
+        await apiClient.logout(refreshToken);
+      } catch {
+        // ignore logout errors but still clear local state
+      }
+    }
+    clearSession();
+  }, [clearSession, refreshToken]);
 
   const value = useMemo(
     () => ({
       isAuthenticated: Boolean(accessToken && refreshToken && user),
+      isLoading,
       accessToken,
       refreshToken,
       user,
       login,
       logout
     }),
-    [accessToken, refreshToken, user, login, logout]
+    [accessToken, refreshToken, user, isLoading, login, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -347,7 +347,7 @@ function TutorDashboard() {
           </div>
           <div className="hero-card__actions">
             <Link to="/tutorias" className="button button--primary">
-              Registrar tutoría
+              Registrar tutor\u00eda
             </Link>
             <Link to="/estudiantes" className="button button--ghost">
               Ver estudiantes
@@ -437,7 +437,7 @@ function TutorDashboard() {
         footer={
           <>
             <Link to="/tutorias" className="button button--primary" onClick={() => setShowTutorModal(false)}>
-              Registrar tutor��a
+              Registrar tutoría
             </Link>
             <Link to="/estudiantes" className="button button--ghost" onClick={() => setShowTutorModal(false)}>
               Ver estudiantes

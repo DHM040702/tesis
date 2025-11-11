@@ -22,31 +22,31 @@ const NAV_BY_VARIANT: Record<DashboardVariant, NavItem[]> = {
   admin: [
     { to: "/", label: "Resumen de riesgo", end: true },
     { to: "/estudiantes", label: "Estudiantes" },
-    { to: "/tutorias", label: "Tutorías" },
+    { to: "/tutorias", label: "Tutor\u00edas" },
     { to: "/asignaciones", label: "Asignaciones" }
   ],
   tutor: [
     { to: "/", label: "Panel del tutor", end: true },
     { to: "/estudiantes", label: "Estudiantes asignados" },
-    { to: "/tutorias", label: "Tutorías" }
+    { to: "/tutorias", label: "Tutor\u00edas" }
   ],
   student: [
     { to: "/", label: "Mi resumen", end: true },
-    { to: "/tutorias", label: "Mis tutorías" }
+    { to: "/tutorias", label: "Mis tutor\u00edas" }
   ]
 };
 
 const TOPBAR_ACTIONS: Record<DashboardVariant, TopbarAction[]> = {
   admin: [
     { label: "Descargar reporte", variant: "ghost" },
-    { label: "Registrar tutoría", variant: "primary", to: "/tutorias" }
+    { label: "Registrar tutor\u00eda", variant: "primary", to: "/tutorias" }
   ],
   tutor: [
     { label: "Ver estudiantes", variant: "ghost", to: "/estudiantes" },
-    { label: "Registrar tutoría", variant: "primary", to: "/tutorias" }
+    { label: "Registrar tutor\u00eda", variant: "primary", to: "/tutorias" }
   ],
   student: [
-    { label: "Ver tutorías", variant: "primary", to: "/tutorias" },
+    { label: "Ver tutor\u00edas", variant: "primary", to: "/tutorias" },
     { label: "Contactar soporte", variant: "ghost", href: "mailto:soporte@unasam.edu.pe" }
   ]
 };
@@ -111,12 +111,12 @@ export function Layout() {
   return (
     <div className={`app-shell${sidebarOpen ? " is-sidebar-open" : ""}`}>
       <aside className={`sidebar${sidebarOpen ? " is-open" : ""}`}>
-        <button type="button" className="sidebar__close" onClick={toggleSidebar} aria-label="Cerrar menú lateral">
+        <button type="button" className="sidebar__close" onClick={toggleSidebar} aria-label={"Cerrar men\u00fa lateral"}>
           ✕
         </button>
         <Link to="/" className="sidebar__brand" onClick={closeSidebar}>
           <span className="sidebar__brand-mark">SIA</span>
-          <span className="sidebar__brand-text">Sistema Integral de Acompañamiento</span>
+          <span className="sidebar__brand-text">Sistema Integral de Acompa\u00f1amiento</span>
         </Link>
         <nav className="sidebar__nav">
           {navItems.map((item) => (
@@ -134,7 +134,7 @@ export function Layout() {
             <span className="sidebar__profile-roles">Roles: {user?.roles?.join(", ")}</span>
           </div>
           <button type="button" onClick={handleLogout} className="button button--ghost">
-            Cerrar sesión
+            Cerrar sesi\u00f3n
           </button>
         </div>
       </aside>
@@ -142,7 +142,7 @@ export function Layout() {
       <main className="app-content">
         <header className="app-topbar">
           <div className="app-topbar__meta">
-            <button type="button" className="app-topbar__menu" onClick={toggleSidebar} aria-label="Abrir menú">
+            <button type="button" className="app-topbar__menu" onClick={toggleSidebar} aria-label={"Abrir men\u00fa"}>
               ☰
             </button>
             <p className="app-topbar__eyebrow">{topbarEyebrow}</p>

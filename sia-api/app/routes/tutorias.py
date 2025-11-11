@@ -406,16 +406,53 @@ async def registrar_tutoria(
                 status_code=403,
                 detail="El estudiante no está asignado a este tutor en el periodo indicado"
             )
+            
+        # 411
+        # try:
+        #     if payload.fecha_hora is None:␍␊
+        #         # sin fecha_hora -> usa DEFAULT de la BD
+        #         await db.execute(text("""␍␊
+        #             INSERT INTO tutorias␍␊
+        #                 (id_tutor, id_estudiante, id_periodo, fecha_hora, id_modalidad_tutoria, tema, observaciones, seguimiento)
+        #             VALUES␍␊
+        #                 (:tutor, :est, :per, curdate(),:mod , :tem, :obs, :seg)
+        #         """), {␍␊
+        #             "tutor": id_tutor_final,␍␊
+        #             "est": payload.id_estudiante,␍␊
+        #             "per": payload.id_periodo,␍␊
+        #             "mod": payload.id_modalidad,␍␊
+        #             "tem": payload.tema,␍␊
+        #             "obs": payload.observaciones,␍␊
+        #             "seg": payload.seguimiento␍␊
+        #         })␍␊
+        #     else:␍␊
+        #         # con fecha_hora proporcionada␍␊
+        #         await db.execute(text("""␍␊
+        #             INSERT INTO tutorias␍␊
+        #                 (id_tutor, id_estudiante, id_periodo, fecha_hora,id_modalidad_tutoria, tema, observaciones, seguimiento)
+        #             VALUES␍␊
+        #                 (:tutor, :est, :per, :fec,:mod, :tem, :obs, :seg)
+        #         """), {␍␊
+        #             "tutor": id_tutor_final,␍␊
+        #             "est": payload.id_estudiante,␍␊
+        #             "per": payload.id_periodo,␍␊
+        #             "mod": payload.id_modalidad,␍␊
+        #             "fec": payload.fecha_hora,␍␊
+        #             "tem": payload.tema,␍␊
+        #             "obs": payload.observaciones,␍␊
+        #             "seg": payload.seguimiento␍␊
+        #         })
+        # 444
 
     # Construir INSERT (dejando que la BD ponga fecha_hora por defecto si no se envía)
     try:
         if payload.fecha_hora is None:
-            # sin fecha_hora -> usa DEFAULT de la BD
+            # sin fecha_hora -> deja que la columna utilice CURRENT_TIMESTAMP
             await db.execute(text("""
                 INSERT INTO tutorias
-                    (id_tutor, id_estudiante, id_periodo, fecha_hora, id_modalidad_tutoria, tema, observaciones, seguimiento)
+                    (id_tutor, id_estudiante, id_periodo, id_modalidad_tutoria, tema, observaciones, seguimiento)
                 VALUES
-                    (:tutor, :est, :per, curdate(),:mod , :tem, :obs, :seg)
+                    (:tutor, :est, :per, :mod, :tem, :obs, :seg)
             """), {
                 "tutor": id_tutor_final,
                 "est": payload.id_estudiante,
@@ -429,9 +466,9 @@ async def registrar_tutoria(
             # con fecha_hora proporcionada
             await db.execute(text("""
                 INSERT INTO tutorias
-                    (id_tutor, id_estudiante, id_periodo, fecha_hora,id_modalidad_tutoria, tema, observaciones, seguimiento)
+                    (id_tutor, id_estudiante, id_periodo, fecha_hora, id_modalidad_tutoria, tema, observaciones, seguimiento)
                 VALUES
-                    (:tutor, :est, :per, :fec,:mod, :tem, :obs, :seg)
+                    (:tutor, :est, :per, :fec, :mod, :tem, :obs, :seg)
             """), {
                 "tutor": id_tutor_final,
                 "est": payload.id_estudiante,

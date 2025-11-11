@@ -44,11 +44,18 @@ type CreateTutoriaPayload = {
 };
 
 
+type PendingRequest = {
+  resolve: (value: unknown) => void;
+  reject: (reason?: unknown) => void;
+  path: string;
+  init?: RequestInit;
+};
+
 class ApiClient {
   private accessToken: string | null = null;
   private refreshToken: string | null = null;
   private isRefreshing = false;
-  private queue: Array<() => void> = [];
+  private queue: PendingRequest[] = [];
 
   setTokens(tokens: Tokens) {
     this.accessToken = tokens.accessToken;
@@ -121,14 +128,7 @@ class ApiClient {
 
     if (this.isRefreshing) {
       return new Promise<T>((resolve, reject) => {
-        this.queue.push(async () => {
-          try {
-            const data = await this.request<T>(path, init);
-            resolve(data);
-          } catch (error) {
-            reject(error);
-          }
-        });
+        this.queue.push({ resolve, reject, path, init });
       });
     }
 
@@ -157,9 +157,12 @@ class ApiClient {
       localStorage.setItem("sia_access", tokens.access_token);
       localStorage.setItem("sia_refresh", tokens.refresh_token);
       const data = await this.request<T>(path, init);
-      this.queue.forEach((cb) => cb());
-      this.queue = [];
+      this.flushQueue();
       return data;
+    } catch (error) {
+      this.resetTokens();
+      this.flushQueue(error);
+      throw error;
     } finally {
       this.isRefreshing = false;
     }
@@ -168,10 +171,6 @@ class ApiClient {
   async login(payload: { correo: string; contrasenia: string }): Promise<ApiLoginResponse> {
     let res: Response;
     const targetUrl = this.buildUrl("/auth/login");
-    console.info("[frontend] POST", targetUrl, {
-      correo: payload.correo,
-      contrasenia: payload.contrasenia
-    });
     try {
       res = await fetch(targetUrl, {
         method: "POST",
@@ -349,6 +348,27 @@ class ApiClient {
       body: JSON.stringify(payload)
     });
     return res;
+  }
+
+  private resetTokens() {
+    this.accessToken = null;
+    this.refreshToken = null;
+    localStorage.removeItem("sia_access");
+    localStorage.removeItem("sia_refresh");
+  }
+
+  private flushQueue(error?: unknown) {
+    const pending = [...this.queue];
+    this.queue = [];
+    pending.forEach(({ resolve, reject, path, init }) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      this.request(path, init)
+        .then(resolve)
+        .catch(reject);
+    });
   }
 }
 
