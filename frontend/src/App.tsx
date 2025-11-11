@@ -3,6 +3,7 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { LoginPage } from "./pages/LoginPage";
 import { StudentsPage } from "./pages/StudentsPage";
 import { TutoriasPage } from "./pages/TutoriasPage";
+import { TutorAssignmentsPage } from "./pages/TutorAssignmentsPage";
 import { useAuth } from "./context/AuthContext";
 import { Layout } from "./components/Layout";
 
@@ -21,6 +22,7 @@ export default function App() {
         <Route index element={<DashboardPage />} />
         <Route path="estudiantes" element={<StudentsPage />} />
         <Route path="tutorias" element={<TutoriasPage />} />
+        <Route path="asignaciones" element={<TutorAssignmentsPage />} />
       </Route>
       <Route path="*" element={<Navigate to={isAuthenticated ? "/" : "/login"} replace />} />
     </Routes>
