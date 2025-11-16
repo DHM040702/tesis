@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useId } from "react";
+﻿import { useCallback, useEffect, useMemo, useState, useId } from "react";
 import type { MouseEvent, ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -36,6 +36,9 @@ export function DashboardPage() {
 function AdminDashboard() {
   const [filters, setFilters] = useState<Filters>({});
   const [showAdminModal, setShowAdminModal] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const PAGE_SIZE_OPTIONS = [10, 20, 30, 40, 50];
   const { data: periodos } = useQuery({
     queryKey: ["periodos"],
     queryFn: () => apiClient.getPeriodos()
@@ -62,6 +65,35 @@ function AdminDashboard() {
   });
 
   const stats = useMemo(() => calcularEstadisticas(resumen ?? []), [resumen]);
+  const totalItems = resumen?.length ?? 0;
+  const totalPages = totalItems ? Math.ceil(totalItems / pageSize) : 1;
+  const currentPage = totalItems ? Math.min(page, totalPages) : 1;
+  const paginatedResumen = useMemo(() => {
+    if (!resumen?.length) {
+      return [];
+    }
+    const start = (currentPage - 1) * pageSize;
+    return resumen.slice(start, start + pageSize);
+  }, [currentPage, pageSize, resumen]);
+  const hasResults = totalItems > 0;
+  const paginationStart = hasResults ? (currentPage - 1) * pageSize + 1 : 0;
+  const paginationEnd = hasResults ? Math.min(currentPage * pageSize, totalItems) : 0;
+  const displayPage = hasResults ? currentPage : 0;
+  const displayTotalPages = hasResults ? totalPages : 0;
+
+  useEffect(() => {
+    setPage(1);
+  }, [filters.periodo, filters.programa]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [pageSize]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
   const handleScrollToDetail = useCallback(() => {
     document.getElementById("detalle-riesgo")?.scrollIntoView({ behavior: "smooth" });
   }, []);
@@ -100,7 +132,7 @@ function AdminDashboard() {
       }
     ];
   }, [filters.periodo, periodos, resumen, stats.altos]);
-  const canDownload = Boolean(resumen?.length);
+  const canDownload = hasResults;
   const closeAdminModalAndScroll = useCallback(() => {
     setShowAdminModal(false);
     window.setTimeout(() => {
@@ -146,7 +178,7 @@ function AdminDashboard() {
             <p className="page__subtitle">Seguimiento del periodo</p>
             <h2 className="hero-card__headline">{stats.total} estudiantes monitoreados</h2>
             <p className="hero-card__copy">
-              Datos actualizados {dayjs().format("DD MMM YYYY, HH:mm")} · priorice cohortes de alto riesgo.
+              Datos actualizados {dayjs().format("DD MMM YYYY, HH:mm")} Â· priorice cohortes de alto riesgo.
             </p>
           </div>
           <div className="hero-card__chart">
@@ -169,7 +201,7 @@ function AdminDashboard() {
       <section className="surface filters-panel">
         <div className="filters-panel__column">
           <label className="field">
-            <span className="field__label">Periodo académico</span>
+            <span className="field__label">Periodo acadÃ©mico</span>
             <select
               value={filters.periodo ?? ""}
               onChange={(e) => setFilters((prev) => ({ ...prev, periodo: Number(e.target.value) }))}
@@ -188,7 +220,7 @@ function AdminDashboard() {
         </div>
         <div className="filters-panel__column">
           <label className="field">
-            <span className="field__label">Programa académico</span>
+            <span className="field__label">Programa acadÃ©mico</span>
             <select
               value={filters.programa ?? ""}
               onChange={(e) =>
@@ -229,9 +261,50 @@ function AdminDashboard() {
             </p>
           </div>
           <span className="section-header__meta">
-            {resumen?.length ?? 0} registros · Actualizado {dayjs().format("DD/MM/YYYY HH:mm")}
+            {totalItems} registros - Actualizado {dayjs().format("DD/MM/YYYY HH:mm")}
           </span>
         </header>
+        <div className="table-pagination">
+          <div className="table-pagination__info">
+            {hasResults
+              ? `Mostrando ${paginationStart}-${paginationEnd} de ${totalItems} estudiantes`
+              : "No hay registros para mostrar"}
+            {isFetching && <span className="table-pagination__updating">Actualizando...</span>}
+          </div>
+          <div className="table-pagination__actions">
+            <label className="field table-pagination__page-size">
+              <span className="field__label">Registros por página</span>
+              <select className="field__control" value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))}>
+                {PAGE_SIZE_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="table-pagination__buttons">
+              <button
+                type="button"
+                className="button button--ghost"
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                disabled={!hasResults || currentPage <= 1}
+              >
+                Anterior
+              </button>
+              <span className="table-pagination__page-indicator">
+                Página {displayPage} de {displayTotalPages}
+              </span>
+              <button
+                type="button"
+                className="button button--ghost"
+                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={!hasResults || currentPage >= totalPages}
+              >
+                Siguiente
+              </button>
+            </div>
+          </div>
+        </div>
         <div className="table-scroll">
           <table id="detalle-riesgo" className="table table--md table--responsive">
             <thead>
@@ -245,13 +318,15 @@ function AdminDashboard() {
               </tr>
             </thead>
             <tbody>
-              {resumen?.map((item) => (
+              {paginatedResumen.map((item) => (
                 <RowResumen key={item.id_estudiante} item={item} />
               ))}
             </tbody>
           </table>
         </div>
-        {resumen?.length === 0 && <p className="empty-message">No hay resultados para los filtros seleccionados.</p>}
+        {totalItems === 0 && !isFetching && (
+          <p className="empty-message">No hay resultados para los filtros seleccionados.</p>
+        )}
       </section>
       <RoleModal
         open={showAdminModal}
@@ -333,16 +408,16 @@ function TutorDashboard() {
     <div className="page">
       <header className="page__header">
         <h1 className="page__title">Panel del tutor</h1>
-        <p className="page__subtitle">Supervise sus estudiantes asignados y organice las próximas sesiones.</p>
+        <p className="page__subtitle">Supervise sus estudiantes asignados y organice las prÃ³ximas sesiones.</p>
       </header>
 
       <section className="surface hero-card">
         <div className="hero-card__stats">
           <div>
             <p className="page__subtitle">Seguimiento activo</p>
-            <h2 className="hero-card__headline">{tutorStats.asignados} estudiantes acompañados</h2>
+            <h2 className="hero-card__headline">{tutorStats.asignados} estudiantes acompaÃ±ados</h2>
             <p className="hero-card__copy">
-              {tutorStats.pendientes} sesiones pendientes · {tutorStats.registradas} sesiones registradas este ciclo.
+              {tutorStats.pendientes} sesiones pendientes Â· {tutorStats.registradas} sesiones registradas este ciclo.
             </p>
           </div>
           <div className="hero-card__actions">
@@ -397,25 +472,25 @@ function TutorDashboard() {
           </table>
         </div>
         {asignados.length === 0 && !loadingAsignados && !asignadosError && (
-          <p className="empty-message">Aún no tiene estudiantes asignados para el periodo seleccionado.</p>
+          <p className="empty-message">AÃºn no tiene estudiantes asignados para el periodo seleccionado.</p>
         )}
       </section>
 
       <section className="surface">
         <header className="section-header">
           <div>
-            <h2 className="section-header__title">Próximas tutorías</h2>
+            <h2 className="section-header__title">PrÃ³ximas tutorÃ­as</h2>
             {loadingTutorias && <span className="section-header__meta">Sincronizando...</span>}
           </div>
         </header>
-        {tutoriasError && <div className="alert alert--error">No se pudieron cargar las tutorías.</div>}
+        {tutoriasError && <div className="alert alert--error">No se pudieron cargar las tutorÃ­as.</div>}
         {upcomingTutorias.length > 0 ? (
           <div className="timeline">
             {upcomingTutorias.map((tutoria) => (
               <article className="timeline__item" key={tutoria.id_tutoria}>
                 <h3 className="timeline__title">{tutoria.tema}</h3>
                 <div className="timeline__meta">
-                  <span>{dayjs(tutoria.fecha_hora).format("DD MMM YYYY · HH:mm")}</span>
+                  <span>{dayjs(tutoria.fecha_hora).format("DD MMM YYYY Â· HH:mm")}</span>
                   <span>{tutoria.estudiante}</span>
                   <span>{tutoria.periodo}</span>
                 </div>
@@ -425,7 +500,7 @@ function TutorDashboard() {
           </div>
         ) : (
           !loadingTutorias &&
-          !tutoriasError && <p className="empty-message">No hay tutorías programadas para los próximos días.</p>
+          !tutoriasError && <p className="empty-message">No hay tutorÃ­as programadas para los prÃ³ximos dÃ­as.</p>
         )}
       </section>
       <RoleModal
@@ -437,7 +512,7 @@ function TutorDashboard() {
         footer={
           <>
             <Link to="/tutorias" className="button button--primary" onClick={() => setShowTutorModal(false)}>
-              Registrar tutoría
+              Registrar tutorÃ­a
             </Link>
             <Link to="/estudiantes" className="button button--ghost" onClick={() => setShowTutorModal(false)}>
               Ver estudiantes
@@ -452,7 +527,39 @@ function TutorDashboard() {
 function StudentDashboard({ user }: { user: ApiUser | null }) {
   const firstName = (user?.persona?.nombres ?? user?.correo ?? "Estudiante").split(" ")[0];
   const roles = user?.roles?.join(", ") || "Sin rol asignado";
+  const gradesSectionId = "mis-notas";
   const [showStudentModal, setShowStudentModal] = useState(false);
+  const [selectedPeriod, setSelectedPeriod] = useState<number | null>(null);
+  const {
+    data: studentSummary,
+    isLoading: summaryLoading,
+    error: summaryError
+  } = useQuery({
+    queryKey: ["student-summary"],
+    queryFn: () => apiClient.getStudentSelfSummary(),
+    staleTime: 1000 * 60
+  });
+  const {
+    data: studentGrades,
+    isFetching: gradesLoading,
+    error: gradesError
+  } = useQuery({
+    queryKey: ["student-grades", selectedPeriod],
+    enabled: typeof selectedPeriod === "number",
+    queryFn: () => apiClient.getStudentGrades({ id_periodo: selectedPeriod! })
+  });
+
+  useEffect(() => {
+    if (selectedPeriod !== null || !studentSummary) {
+      return;
+    }
+    const defaultPeriod =
+      studentSummary.periodo_sugerido ?? studentSummary.periodos_disponibles[0]?.id_periodo ?? null;
+    if (typeof defaultPeriod === "number") {
+      setSelectedPeriod(defaultPeriod);
+    }
+  }, [selectedPeriod, studentSummary]);
+
   const studentModalItems = useMemo<RoleModalItem[]>(() => {
     const correo = user?.correo ?? "Sin correo registrado";
     const documento = user?.persona?.dni ?? "Sin documento";
@@ -475,26 +582,95 @@ function StudentDashboard({ user }: { user: ApiUser | null }) {
     ];
   }, [roles, user]);
 
+  const periodOptions = studentSummary?.periodos_disponibles ?? [];
+  const summaryErrorMessage = summaryError instanceof Error ? summaryError.message : null;
+  const gradesErrorMessage = gradesError instanceof Error ? gradesError.message : null;
+  const selectedPeriodLabel = selectedPeriod
+    ? periodOptions.find((item) => item.id_periodo === selectedPeriod)?.nombre ?? "Periodo sin identificar"
+    : "Seleccione un periodo";
+  const riesgoActual = studentSummary?.riesgo_actual;
+  const riesgoNivel = riesgoActual?.nivel ?? "Sin nivel calculado";
+  const riesgoPeriodo = riesgoActual?.periodo ?? "Periodo no disponible";
+  const riesgoFechaTexto = riesgoActual?.actualizado_en
+    ? dayjs(riesgoActual.actualizado_en).format("DD/MM/YYYY HH:mm")
+    : "Sin fecha registrada";
+  const riesgoDescripcion =
+    riesgoActual?.descripcion ?? "Cuando se procese tu informacion academica veras aqui el nivel de riesgo asignado.";
+  const riesgoPuntaje =
+    typeof riesgoActual?.puntaje === "number" ? riesgoActual.puntaje.toFixed(2) : "Sin puntaje asignado";
+  const riskAccentColor = resolveRiskAccent(riesgoNivel);
+  const gradeResumen = studentGrades?.resumen;
+  const detalleNotas = studentGrades?.detalle ?? [];
+  const statsSubtitle = selectedPeriod ? selectedPeriodLabel : "Seleccione un periodo para calcular tus indicadores";
+
+  const scrollToGrades = useCallback(() => {
+    document.getElementById(gradesSectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
   return (
     <div className="page">
+      <br />
       <header className="page__header">
-        <h1 className="page__title">Hola, {firstName}</h1>
-        <p className="page__subtitle">Este panel resume tus acciones prioritarias dentro del sistema de acompañamiento.</p>
+        <h1 className="page__title">Panel del estudiante</h1>
       </header>
 
       <section className="surface hero-card">
-        <div className="hero-card__stats">
-          <div>
-            <p className="page__subtitle">Tu cuenta</p>
-            <h2 className="hero-card__headline">Rol: {roles}</h2>
-            <p className="hero-card__copy">Mantente al día con tus tutorías y alertas académicas para recibir soporte oportuno.</p>
+        <div
+          className="hero-card__stats"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 3fr) minmax(0, 1fr)",
+            gap: "1.5rem",
+            alignItems: "stretch"
+          }}
+        >
+          <div className="hero-card__profile">
+            <p className="hero-card__headline" style={{ fontWeight: 700 }}>
+              Analisis y recursos
+            </p>
+            <br />
+            <div className="hero-card__meta hero-card__meta--risk">
+              <div className="summary-grid hero-card__risk-grid">
+                <RiskInfoCard
+                  label="Nivel"
+                  value={summaryLoading ? "..." : <NivelBadge nivel={riesgoNivel} />}
+                  helper="Clasificacion actual"
+                  accentColor={riskAccentColor}
+                />
+                <RiskInfoCard
+                  label="Puntaje"
+                  value={summaryLoading ? "..." : riesgoPuntaje}
+                  helper="Escala 0 - 100"
+                  accentColor={riskAccentColor}
+                />
+                <RiskInfoCard
+                  label="Periodo"
+                  value={summaryLoading ? "..." : riesgoPeriodo}
+                  helper="Ultimo calculo disponible"
+                  accentColor="#0ea5e9"
+                />
+                <RiskInfoCard
+                  label="Actualizado"
+                  value={summaryLoading ? "..." : riesgoFechaTexto}
+                  helper="Fecha y hora de procesamiento"
+                  accentColor="#8b5cf6"
+                />
+              </div>
+              {summaryErrorMessage && <p className="field__hint field__hint--error">{summaryErrorMessage}</p>}
+            </div>
           </div>
-          <div className="hero-card__actions">
+          <div
+            className="hero-card__actions"
+            style={{ display: "flex", flexDirection: "column", gap: "0.75rem", justifyContent: "center" }}
+          >
             <Link to="/tutorias" className="button button--primary">
-              Ver tutorías
+              Ver tutorias
             </Link>
             <button type="button" className="button button--ghost" onClick={() => setShowStudentModal(true)}>
               Recordatorios
+            </button>
+            <button type="button" className="button button--ghost" onClick={scrollToGrades}>
+              Revisar mis notas
             </button>
             <a className="button button--ghost" href="mailto:soporte@unasam.edu.pe">
               Contactar soporte
@@ -504,22 +680,84 @@ function StudentDashboard({ user }: { user: ApiUser | null }) {
       </section>
 
       <section className="summary-grid">
-        <StudentCard titulo="Revisa tus alertas" descripcion="Confirma las notificaciones recibidas y comunica cualquier duda a tu tutor." />
-        <StudentCard titulo="Actualiza tu progreso" descripcion="Registra compromisos y acuerdos después de cada sesión de tutoría." />
-        <StudentCard titulo="Organiza tu calendario" descripcion="Planifica estudios, tutorías y actividades personales para evitar imprevistos." />
+        <StatCard titulo="Promedio general" valor={formatPromedioDetalle(studentGrades?.promedio_general)} descripcion={statsSubtitle} />
+        <StatCard titulo="Cursos aprobados" valor={String(gradeResumen?.aprobados ?? 0)} descripcion="Periodo seleccionado" color="#16a34a" />
+        <StatCard titulo="Cursos desaprobados" valor={String(gradeResumen?.desaprobados ?? 0)} descripcion="Periodo seleccionado" color="#dc2626" />
+        <StatCard titulo="Cursos pendientes" valor={String(gradeResumen?.pendientes ?? 0)} descripcion="Periodo seleccionado" color="#f97316" />
+      </section>
+
+      <section className="surface" id={gradesSectionId}>
+        <header className="section-header">
+          <div>
+            <h2 className="section-header__title">Mis calificaciones</h2>
+            <p className="section-header__subtitle">Verifica tus notas finales por periodo academico.</p>
+            {gradesLoading && <span className="section-header__meta">Actualizando informacion...</span>}
+            {gradesErrorMessage && <span className="section-header__meta section-header__meta--error">{gradesErrorMessage}</span>}
+          </div>
+          <label className="field">
+            <span className="field__label">Periodo academico</span>
+            <select
+              className="field__control"
+              value={selectedPeriod ?? ""}
+              onChange={(event) => setSelectedPeriod(event.target.value ? Number(event.target.value) : null)}
+              disabled={periodOptions.length === 0}
+            >
+              <option value="">Seleccione un periodo</option>
+              {periodOptions.map((periodo) => (
+                <option key={periodo.id_periodo} value={periodo.id_periodo}>
+                  {periodo.nombre}
+                </option>
+              ))}
+            </select>
+          </label>
+        </header>
+        {!periodOptions.length && !summaryLoading && (
+          <p className="field__hint">Aun no encontramos periodos con calificaciones registradas.</p>
+        )}
+        <div className="table-scroll">
+          <table className="table table--responsive">
+            <thead>
+              <tr>
+                <th>Curso</th>
+                <th>Creditos</th>
+                <th>Nota final</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {detalleNotas.map((nota, index) => (
+                <tr key={`${nota.curso}-${index}`}>
+                  <td data-label="Curso">{nota.curso}</td>
+                  <td data-label="Creditos">{nota.creditos ?? "-"}</td>
+                  <td data-label="Nota final">{formatNotaFinal(nota.nota_final)}</td>
+                  <td data-label="Estado">
+                    <EstadoNotaBadge estado={nota.estado} />
+                  </td>
+                </tr>
+              ))}
+              {detalleNotas.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="table__empty">
+                    {selectedPeriod ? "Sin calificaciones registradas para este periodo." : "Seleccione un periodo para ver sus notas."}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section className="surface">
         <header className="section-header">
           <div>
-            <h2 className="section-header__title">Recursos rápidos</h2>
-            <p className="section-header__subtitle">Accesos sugeridos para que aproveches el acompañamiento académico.</p>
+            <h2 className="section-header__title">Recursos utiles</h2>
+            <p className="section-header__subtitle">Organiza tus tutorias y comunica cambios en tus calificaciones.</p>
           </div>
         </header>
         <div className="summary-grid">
-          <StudentCard titulo="Tutorías" descripcion="Consulta el historial de sesiones y prepara tus próximos encuentros." />
-          <StudentCard titulo="Comunicaciones" descripcion="Mantente conectado con tu tutor y responde a las alertas enviadas." />
-          <StudentCard titulo="Bienestar" descripcion="Solicita orientación adicional cuando detectes necesidades personales." />
+          <StudentCard titulo="Alertas de riesgo" descripcion="Notifica a tu tutor si el nivel mostrado en este panel aumenta o cambia de periodo." />
+          <StudentCard titulo="Notas observadas" descripcion="Si encuentras una nota pendiente o desaprobada revisa el detalle con tu docente o coordinador." />
+          <StudentCard titulo="Agenda de tutorias" descripcion="Programa sesiones para revisar dudas sobre tu rendimiento y recibir acompanamiento." />
         </div>
       </section>
       <RoleModal
@@ -541,9 +779,7 @@ function StudentDashboard({ user }: { user: ApiUser | null }) {
       />
     </div>
   );
-}
-
-function calcularEstadisticas(resumen: RiskSummaryItem[]) {
+}function calcularEstadisticas(resumen: RiskSummaryItem[]) {
   const total = resumen.length;
   const altos = resumen.filter((item) => item.nivel.toLowerCase().includes("alto")).length;
   const medios = resumen.filter((item) => item.nivel.toLowerCase().includes("medio")).length;
@@ -578,8 +814,9 @@ function RowResumen({ item }: { item: RiskSummaryItem }) {
   );
 }
 
-function NivelBadge({ nivel }: { nivel: string }) {
-  const normalized = nivel.toLowerCase();
+function NivelBadge({ nivel }: { nivel: string | null | undefined }) {
+  const safeNivel = typeof nivel === "string" ? nivel : "Sin nivel";
+  const normalized = safeNivel.toLowerCase();
   const variant = normalized.includes("alto")
     ? "badge--danger"
     : normalized.includes("medio")
@@ -588,7 +825,7 @@ function NivelBadge({ nivel }: { nivel: string }) {
         ? "badge--success"
         : "";
 
-  return <span className={`badge ${variant}`}>{nivel}</span>;
+  return <span className={`badge ${variant}`}>{safeNivel}</span>;
 }
 
 function formatPuntaje(puntaje: RiskSummaryItem["puntaje"]) {
@@ -651,6 +888,51 @@ function HighlightCard({ titulo, cantidad, colorFondo = "rgba(37, 99, 235, 0.1)"
   );
 }
 
+function RiskInfoCard({
+  label,
+  value,
+  helper,
+  accentColor = "#2563eb"
+}: {
+  label: string;
+  value: ReactNode;
+  helper?: string;
+  accentColor?: string;
+}) {
+  return (
+    <article
+      className="summary-card"
+      style={{
+        background: "rgba(255, 255, 255, 0.96)",
+        color: "#0f172a",
+        border: `1px solid ${accentColor}`,
+        boxShadow: "0 10px 25px rgba(15, 23, 42, 0.08)"
+      }}
+    >
+      <span className="summary-card__title" style={{ color: accentColor }}>
+        {label}
+      </span>
+      <strong className="summary-card__value">{value}</strong>
+      {helper && <p className="stat-card__description">{helper}</p>}
+    </article>
+  );
+}
+
+function resolveRiskAccent(nivel?: string | null) {
+  const normalized =
+    typeof nivel === "string" ? nivel.toLowerCase() : String(nivel ?? "").toLowerCase();
+  if (normalized.includes("alto")) {
+    return "#ef4444";
+  }
+  if (normalized.includes("medio")) {
+    return "#f97316";
+  }
+  if (normalized.includes("bajo")) {
+    return "#16a34a";
+  }
+  return "#2563eb";
+}
+
 function StudentCard({ titulo, descripcion }: { titulo: string; descripcion: string }) {
   return (
     <article className="summary-card" style={{ background: "rgba(255, 255, 255, 0.9)", color: "#1f2937" }}>
@@ -658,6 +940,33 @@ function StudentCard({ titulo, descripcion }: { titulo: string; descripcion: str
       <p className="stat-card__description">{descripcion}</p>
     </article>
   );
+}
+
+function formatPromedioDetalle(valor?: number | null) {
+  if (typeof valor === "number" && Number.isFinite(valor)) {
+    return valor.toFixed(2);
+  }
+  return "Sin registro";
+}
+
+function formatNotaFinal(valor?: number | null) {
+  if (typeof valor === "number" && Number.isFinite(valor)) {
+    return valor.toFixed(2);
+  }
+  return "Pendiente";
+}
+
+function EstadoNotaBadge({ estado }: { estado: string | null }) {
+  const label = estado ?? "Sin estado";
+  const normalized = label.toLowerCase();
+  const variant = normalized.includes("desaprob")
+    ? "badge--danger"
+    : normalized.includes("pend")
+      ? "badge--warning"
+      : normalized.includes("aprob")
+        ? "badge--success"
+        : "badge";
+  return <span className={`badge ${variant}`}>{label}</span>;
 }
 
 type RoleModalProps = {
@@ -717,3 +1026,4 @@ function RoleModal({ open, onClose, title, description, items, footer }: RoleMod
     </div>
   );
 }
+

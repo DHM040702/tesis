@@ -287,14 +287,14 @@ function TutorManagementPage({ variant }: { variant: DashboardVariant }) {
       )}
       <section className={formCardClass}>
         <header className="page__header page__header--compact">
-          <h1 className="page__title">Registro de tutor?a</h1>
-          <p className="page__subtitle">Complete el formulario para registrar la atenci?n brindada al estudiante.</p>
+          <h1 className="page__title">Registro de tutoría</h1>
+          <p className="page__subtitle">Complete el formulario para registrar la atención brindada al estudiante.</p>
           <span className="section-header__meta">Modalidad Seleccionada: {modalidadNombre}</span>
         </header>
         <form onSubmit={onSubmit} className="form-grid">
           <input type="hidden" {...register("id_estudiante", { valueAsNumber: true, required: true })} />
           <label className="field">
-            <span className="field__label">Periodo acad?mico</span>
+            <span className="field__label">Periodo académico</span>
             <select {...register("id_periodo", { valueAsNumber: true, required: true })} className="field__control">
               <option value="">Seleccione un periodo</option>
               {periodos?.map((periodo) => (
@@ -489,7 +489,7 @@ function TutorManagementPage({ variant }: { variant: DashboardVariant }) {
 
           <div className="form-actions field--full">
             <button type="submit" disabled={enviando} className="button button--primary">
-              {enviando ? "Guardando..." : "Registrar tutor?a"}
+              {enviando ? "Guardando..." : "Registrar tutoría"}
             </button>
           </div>
         </form>
@@ -507,7 +507,7 @@ function TutorManagementPage({ variant }: { variant: DashboardVariant }) {
             <TimelineItem key={tutoria.id_tutoria} tutoria={tutoria} />
           ))}
         </div>
-        {tutorias && tutorias.length === 0 && <p className="empty-message">Registre una tutor?a para visualizarla aqu?.</p>}
+        {tutorias && tutorias.length === 0 && <p className="empty-message">Registre una tutoría para visualizarla aquí.</p>}
       </section>
     </div>
   );
@@ -518,15 +518,15 @@ function StudentTutoriasView({ user }: { user: ApiUser | null }) {
   const supportEmail = "soporte@unasam.edu.pe";
   const reminders = [
     { title: "Coordina tu agenda", description: "Confirma con tu tutor las fechas pactadas y actualiza tus compromisos en un calendario personal." },
-    { title: "Revisa tus acuerdos", description: "Luego de cada sesi?n, valida que los acuerdos y compromisos queden registrados por tu tutor." },
-    { title: "Pide ayuda a tiempo", description: "Si detectas nuevas alertas acad?micas o personales, notif?calo para recibir apoyo oportuno." }
+    { title: "Revisa tus acuerdos", description: "Luego de cada sesión, valida que los acuerdos y compromisos queden registrados por tu tutor." },
+    { title: "Pide ayuda a tiempo", description: "Si detectas nuevas alertas académicas o personales, notifícalo para recibir apoyo oportuno." }
   ];
 
   return (
     <div className="page">
       <header className="page__header">
-        <h1 className="page__title">Mis tutor?as</h1>
-        <p className="page__subtitle">Consulta el estado del acompa?amiento registrado por tu tutor.</p>
+        <h1 className="page__title">Mis tutorías</h1>
+        <p className="page__subtitle">Consulta el estado del acompañamiento registrado por tu tutor.</p>
       </header>
 
       <section className="surface hero-card">
@@ -534,7 +534,7 @@ function StudentTutoriasView({ user }: { user: ApiUser | null }) {
           <div>
             <p className="page__subtitle">Panel del estudiante</p>
             <h2 className="hero-card__headline">Hola, {firstName}</h2>
-            <p className="hero-card__copy">Tus tutor?as ser?n registradas por tu tutor. Aqu? ver?s un resumen cuando existan sesiones publicadas.</p>
+            <p className="hero-card__copy">Tus tutorías serán registradas por tu tutor. Aquí verás un resumen cuando existan sesiones publicadas.</p>
           </div>
           <div className="hero-card__actions">
             <Link to="/" className="button button--ghost">
@@ -550,12 +550,12 @@ function StudentTutoriasView({ user }: { user: ApiUser | null }) {
       <section className="surface">
         <header className="section-header">
           <div>
-            <h2 className="section-header__title">Historial de tutor?as</h2>
-            <p className="section-header__subtitle">Solicita a tu tutor que confirme los registros despu?s de cada encuentro.</p>
+            <h2 className="section-header__title">Historial de tutorías</h2>
+            <p className="section-header__subtitle">Solicita a tu tutor que confirme los registros después de cada encuentro.</p>
           </div>
         </header>
         <p className="empty-message">
-          A?n no hay tutor?as visibles desde tu perfil. Comun?cate con tu tutor si necesitas una constancia del seguimiento.
+          Aún no hay tutorías visibles desde tu perfil. Comunícate con tu tutor si necesitas una constancia del seguimiento.
         </p>
       </section>
 

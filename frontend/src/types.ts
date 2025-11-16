@@ -105,3 +105,44 @@ export type TutorCatalogItem = {
   dni?: string | null;
   correo?: string | null;
 };
+
+export type StudentSelfSummary = {
+  estudiante: {
+    id_estudiante: number;
+    codigo_alumno?: string | null;
+    id_programa?: number | null;
+    programa?: string | null;
+    dni?: string | null;
+    apellido_paterno?: string | null;
+    apellido_materno?: string | null;
+    nombres?: string | null;
+  } | null;
+  riesgo_actual: {
+    id_periodo?: number | null;
+    periodo?: string | null;
+    puntaje?: number | null;
+    nivel?: string | null;
+    descripcion?: string | null;
+    actualizado_en?: string | null;
+  } | null;
+  periodos_disponibles: Array<{
+    id_periodo: number;
+    nombre: string;
+  }>;
+  periodo_sugerido?: number | null;
+};
+
+export type StudentGradesResponse = {
+  detalle: Array<{
+    curso: string;
+    creditos: number | null;
+    nota_final: number | null;
+    estado: string | null;
+  }>;
+  promedio_general: number | null;
+  resumen: {
+    aprobados: number;
+    desaprobados: number;
+    pendientes: number;
+  };
+};

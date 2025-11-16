@@ -124,7 +124,7 @@ async def calificaciones_estudiante(
             c.creditos,
             cal.nota_final,
             CASE
-                WHEN cal.nota_final >= 13 THEN 'Aprobado'
+                WHEN cal.nota_final >= 11 THEN 'Aprobado'
                 WHEN cal.nota_final IS NULL THEN 'Pendiente'
                 ELSE 'Desaprobado'
             END AS estado

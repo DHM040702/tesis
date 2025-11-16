@@ -136,7 +136,6 @@ export function Layout() {
 
   const shellStyle: React.CSSProperties = {
     display: "flex",
-    alignItems: "stretch",
     minHeight: "100vh",
     position: "relative"
   };
@@ -146,12 +145,12 @@ export function Layout() {
     flexShrink: 0,
     display: "flex",
     flexDirection: "column",
-    minHeight: "100vh",
-    position: isMobile ? "fixed" : "relative",
+    height: "100vh",
+    position: "fixed",
     top: 0,
     left: 0,
     zIndex: 40,
-    transform: sidebarOpen || !isMobile ? "translateX(0)" : "translateX(-100%)",
+    transform: isMobile ? (sidebarOpen ? "translateX(0)" : "translateX(-100%)") : "translateX(0)",
     transition: "transform 0.3s ease",
     boxShadow: "4px 0 25px rgba(15,23,42,0.35)"
   };

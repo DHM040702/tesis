@@ -10,9 +10,9 @@ const nivelesClases: Record<string, string> = {
 };
 
 const nivelIconos: Record<string, string> = {
-  alto: "ÔÜá",
-  medio: "Ôû│",
-  bajo: "Ô£ô"
+  alto: "",
+  medio: "",
+  bajo: ""
 };
 
 type Filters = {

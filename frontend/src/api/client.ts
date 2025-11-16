@@ -9,7 +9,9 @@ import {
   ProgramItem,
   RiskLevelItem,
   RiskSummaryItem,
+  StudentGradesResponse,
   StudentItem,
+  StudentSelfSummary,
   TutorAssignmentItem,
   TutorCatalogItem
 } from "../types";
@@ -287,6 +289,32 @@ class ApiClient {
       page: data.page ?? fallbackPage,
       pageSize: data.page_size ?? fallbackPageSize
     };
+  }
+
+  async getStudentSelfSummary(): Promise<StudentSelfSummary> {
+    const res = await this.request<ApiResponse<StudentSelfSummary>>("/mi/resumen");
+    return (
+      res.data ?? {
+        estudiante: null,
+        riesgo_actual: null,
+        periodos_disponibles: [],
+        periodo_sugerido: null
+      }
+    );
+  }
+
+  async getStudentGrades(params: { id_periodo: number }): Promise<StudentGradesResponse> {
+    const query = new URLSearchParams();
+    query.append("id_periodo", String(params.id_periodo));
+    const endpoint = `/mi/calificaciones?${query.toString()}`;
+    const res = await this.request<ApiResponse<StudentGradesResponse>>(endpoint);
+    return (
+      res.data ?? {
+        detalle: [],
+        promedio_general: null,
+        resumen: { aprobados: 0, desaprobados: 0, pendientes: 0 }
+      }
+    );
   }
 
   async getTutorAssignments(id_periodo?: number): Promise<TutorAssignment[]> {
