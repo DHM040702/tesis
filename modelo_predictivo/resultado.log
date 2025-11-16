@@ -1,0 +1,39 @@
+   id_estudiante  id_periodo  promedio  asistencia  deserta
+0              1          11      3.00        15.0        0
+1              1          12      8.00        40.0        0
+2              1          13      7.00        35.0        0
+3              1          15      1.50         7.5        0
+4              1          16      7.25        36.3        0
+       id_estudiante    id_periodo      promedio    asistencia       deserta
+count   22404.000000  22404.000000  22404.000000  22404.000000  22404.000000
+mean     1205.834092     11.712641     12.050465     60.257003      0.360293
+std       973.145780     12.252503      2.502531     12.511998      0.480096
+min         1.000000      1.000000      1.000000      5.000000      0.000000
+25%       378.000000      4.000000     11.000000     55.000000      0.000000
+50%       969.000000      7.000000     12.400000     62.000000      0.000000
+75%      1857.000000      9.000000     13.666667     68.300000      1.000000
+max      3852.000000     49.000000     18.500000     92.500000      1.000000
+deserta
+0    14332
+1     8072
+Name: count, dtype: int64
+Entrenando modelo...
+
+Matriz de confusión:
+[[2829   38]
+ [1580   34]]
+
+Reporte de clasificación:
+              precision    recall  f1-score   support
+
+           0       0.64      0.99      0.78      2867
+           1       0.47      0.02      0.04      1614
+
+    accuracy                           0.64      4481
+   macro avg       0.56      0.50      0.41      4481
+weighted avg       0.58      0.64      0.51      4481
+
+
+AUC-ROC: 0.5699
+
+Modelo guardado como modelo_desercion.pkl
