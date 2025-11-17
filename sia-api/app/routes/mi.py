@@ -12,7 +12,7 @@ from ..db import get_session
 from ..deps import require_roles
 from ..schemas import ApiResponse
 
-router = APIRouter(prefix="/mi", tags=["mi_panel"])
+router = APIRouter(prefix="/mi", tags=["resumen_notas"])
 
 SQL_ESTUDIANTE_DESDE_USUARIO = text(
     """
