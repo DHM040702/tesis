@@ -1,6 +1,6 @@
 # app/main.py
 from fastapi import FastAPI
-from .routes import auth, usuarios, estudiantes, riesgo, alertas, fse, dev, academico, catalogos, tutorias, mi
+from .routes import auth, usuarios, estudiantes, riesgo, alertas, fse, dev, academico, catalogos, tutorias, mi, modelo
 import os
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -62,6 +62,7 @@ app.include_router(academico.router, prefix="/api")
 app.include_router(catalogos.router, prefix="/api")
 app.include_router(tutorias.router, prefix="/api")
 app.include_router(mi.router, prefix="/api")
+app.include_router(modelo.router, prefix="/api")
 
 
 if DEV_MODE:

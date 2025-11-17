@@ -18,9 +18,7 @@ SELECT
     m.id_periodo,
     COALESCE(vp.promedio, 0)        AS promedio,
     COALESCE(va.asistencia_pct, 0)  AS asistencia,
-    vd.deserta                      AS deserta,
-    vf.fse_puntos,
-    vf.fse_clase
+    vd.deserta                      AS deserta
 FROM estudiantes e
 JOIN matriculas m 
       ON m.id_estudiante = e.id_estudiante
@@ -33,12 +31,7 @@ LEFT JOIN v_asistencia_periodo va
 LEFT JOIN v_desercion_academica vd
       ON vd.id_estudiante = e.id_estudiante
      AND vd.id_periodo    = m.id_periodo
-LEFT JOIN v_fse_estudiante_periodo vf
-      ON vf.id_estudiante = e.id_estudiante
-     AND vf.id_periodo    = m.id_periodo
-where
-	vf.fse_puntos is not null
-    AND vf.fse_clase is not null;
+GROUP BY e.id_estudiante, m.id_periodo;
 """
 
 def main():
@@ -105,7 +98,7 @@ def main():
         print("\nDistribución de la variable deserta:")
         print(df["deserta"].value_counts())
 
-        output_path = "dataset_desercion.csv"
+        output_path = "dataset_desercion_promedios.csv"
         df.to_csv(output_path, index=False, encoding="utf-8-sig")
         print(f"\n✅ Dataset guardado en: {output_path}")
 
