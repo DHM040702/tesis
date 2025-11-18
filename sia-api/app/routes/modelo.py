@@ -29,9 +29,7 @@ def _predecir_desercion(
     cursos_matriculados: int,
     cursos_desaprobados: int,
 ):
-    """
-    Misma lógica que tu script standalone.
-    """
+    
     carga_baja = 1 if cursos_matriculados <= 2 else 0
     cursos_aprobados = cursos_matriculados - cursos_desaprobados
 
@@ -73,15 +71,7 @@ def _predecir_desercion(
     dependencies=[Depends(require_roles("admin", "autoridad", "tutor"))],
 )
 async def predecir_desercion_endpoint(payload: DesercionRequest):
-    """
-    Endpoint que envuelve la función de predicción del modelo de deserción.
-    Recibe:
-    - promedio
-    - asistencia
-    - cursos_matriculados
-    - cursos_desaprobados
-    """
-
+    
     if model_desercion is None:
         raise HTTPException(
             status_code=500,
