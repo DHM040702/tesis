@@ -66,18 +66,23 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, [clearSession]);
 
   const login = useCallback(async (correo: string, contrasenia: string) => {
-    const { access_token, refresh_token } = await apiClient.login({
+    const response = await apiClient.login({
       correo,
       contrasenia
     });
+    const { access_token, refresh_token, user: profile } = response;
     try {
       apiClient.setTokens({ accessToken: access_token, refreshToken: refresh_token });
-      const profile = await apiClient.getMe();
       setAccessToken(access_token);
       setRefreshToken(refresh_token);
       localStorage.setItem(ACCESS_KEY, access_token);
       localStorage.setItem(REFRESH_KEY, refresh_token);
-      setUser(profile);
+      if (profile) {
+        setUser(profile);
+        return;
+      }
+      const fallbackProfile = await apiClient.getMe();
+      setUser(fallbackProfile);
     } catch (error) {
       apiClient.setTokens({ accessToken: null, refreshToken: null });
       clearSession();

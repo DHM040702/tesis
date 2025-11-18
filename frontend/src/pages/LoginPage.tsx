@@ -1,6 +1,6 @@
 import { useForm } from "react-hook-form";
 import { useAuth } from "../context/AuthContext";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 type LoginForm = {
@@ -10,10 +10,16 @@ type LoginForm = {
 
 export function LoginPage() {
   const { register, handleSubmit } = useForm<LoginForm>({ defaultValues: { correo: "", contrasenia: "" } });
-  const { login } = useAuth();
+  const { login, isAuthenticated } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/", { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   const onSubmit = handleSubmit(async (data) => {
     setError(null);

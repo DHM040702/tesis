@@ -16,6 +16,7 @@ export type ApiLoginResponse = {
   access_token: string;
   refresh_token: string;
   token_type: string;
+  user?: ApiUser | null;
 };
 
 export type ApiUser = {
@@ -145,4 +146,44 @@ export type StudentGradesResponse = {
     desaprobados: number;
     pendientes: number;
   };
+};
+
+export type DropoutPredictionRequest = {
+  promedio: number;
+  asistencia: number;
+  cursos_matriculados: number;
+  cursos_desaprobados: number;
+};
+
+export type DropoutPredictionResult = {
+  prediccion: number;
+  probabilidad: number;
+  nivel: string;
+};
+
+export type StudentMatricula = {
+  id_matricula: number;
+  curso: string;
+  creditos: number | null;
+  docente?: string | null;
+  estado_matricula?: string | null;
+  fecha_matricula?: string | null;
+};
+
+export type StudentAttendanceSummary = {
+  curso: string;
+  asistencias: number | null;
+  faltas: number | null;
+  total_sesiones: number | null;
+  porcentaje_asistencia: number | null;
+};
+
+export type AcademicGradesResponse = {
+  detalle: Array<{
+    curso: string;
+    creditos: number | null;
+    nota_final: number | null;
+    estado: string | null;
+  }>;
+  promedio_general: number | null;
 };

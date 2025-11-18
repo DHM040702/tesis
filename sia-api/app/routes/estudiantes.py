@@ -7,6 +7,35 @@ from sqlalchemy import text
 from ..db import get_session
 from ..deps import require_roles
 from ..schemas import ApiResponse
+from typing import Any, Dict, List, Optional
+from pydantic import BaseModel
+
+# ===========================
+# MODELOS DE RESPUESTA
+# ===========================
+
+class EstudianteItem(BaseModel):
+    id_estudiante: int
+    codigo_alumno: str
+    dni: Optional[str] = None
+    apellido_paterno: Optional[str] = None
+    apellido_materno: Optional[str] = None
+    nombres: Optional[str] = None
+    programa: Optional[str] = None
+    puntaje: Optional[float] = None
+    nivel: Optional[str] = None
+
+
+class DataResponse(BaseModel):
+    items: List[EstudianteItem]
+    total: int
+    page_size: int
+
+
+class ApiResponse(BaseModel):
+    ok: bool
+    data: DataResponse
+
 
 router = APIRouter(prefix="/estudiantes", tags=["estudiantes"])
 
@@ -47,7 +76,7 @@ async def listar(
         filters_sql += " AND nr.nombre=:niv"
         params["niv"] = riesgo
     if termino:
-        filters_sql += " AND (p.dni LIKE :term OR CONCAT_WS(' ', p.apellido_paterno, p.apellido_materno, p.nombres) LIKE :term)"
+        filters_sql += " AND (p.dni LIKE '%:term%' OR CONCAT_WS(' ', p.apellido_paterno, p.apellido_materno, p.nombres) LIKE '%:term%')"
         params["term"] = f"%{termino.strip()}%"
     
     offset = (page - 1) * page_size
@@ -110,3 +139,56 @@ async def detalle(id_estudiante: int, db: AsyncSession = Depends(get_session)):
         "riesgos": [dict(r._mapping) for r in riesgos],
         "alertas": [dict(a._mapping) for a in alertas]
     }}
+
+@router.get(
+    "/codigo/",
+    dependencies=[Depends(require_roles("admin","autoridad","tutor"))]
+)
+async def detalle_por_codigo(
+    codigo: str = Query(
+        ...,
+        min_length=2,
+        description="Buscar coincidencias por codigo de alumno",
+    ),
+    max_alumnos: int = Query(
+        5,
+        ge=1,
+        le=50,
+        description="Maximo de alumnos a devolver (por defecto 20, maximo 50)",
+    ),
+    db: AsyncSession = Depends(get_session),
+):
+    busq_cod = f"%{codigo}%"
+
+    q1 = text("""
+      SELECT e.id_estudiante,
+             e.codigo_alumno,
+             e.id_programa,
+             e.anio_ingreso,
+             e.id_estado_academico,
+             p.dni,
+             p.apellido_paterno,
+             p.apellido_materno,
+             p.nombres,
+             prog.nombre AS programa
+      FROM estudiantes e
+      LEFT JOIN personas p ON p.id_persona = e.id_persona
+      LEFT JOIN programas prog ON prog.id_programa = e.id_programa
+      WHERE e.codigo_alumno LIKE :cod
+      ORDER BY e.codigo_alumno
+      LIMIT :limit
+    """)
+
+    res = await db.execute(q1, {"cod": busq_cod, "limit": max_alumnos})
+    filas = res.fetchall()
+
+    estudiantes = [dict(f._mapping) for f in filas]
+
+    return {
+        "ok": True,
+        "data": {
+            "estudiantes": estudiantes,
+            "total_encontrados": len(estudiantes),
+            "max_alumnos": max_alumnos,
+        },
+    }

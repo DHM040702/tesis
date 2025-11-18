@@ -1,16 +1,21 @@
 import dayjs from "dayjs";
 import {
+  AcademicGradesResponse,
   ApiLoginResponse,
   ApiResponse,
   ApiTutoriasResponse,
   ApiUser,
+  DropoutPredictionRequest,
+  DropoutPredictionResult,
   PaginatedResponse,
   PeriodoItem,
   ProgramItem,
   RiskLevelItem,
   RiskSummaryItem,
+  StudentAttendanceSummary,
   StudentGradesResponse,
   StudentItem,
+  StudentMatricula,
   StudentSelfSummary,
   TutorAssignmentItem,
   TutorCatalogItem
@@ -291,6 +296,19 @@ class ApiClient {
     };
   }
 
+  async searchStudentsByCode(params: { codigo: string; max_alumnos?: number }): Promise<StudentItem[]> {
+    const query = new URLSearchParams();
+    query.append("codigo", params.codigo.trim());
+    if (params.max_alumnos) {
+      query.append("max_alumnos", String(params.max_alumnos));
+    }
+    const endpoint = `/estudiantes/?${query.toString()}`;
+    const res = await this.request<ApiResponse<{
+      estudiantes?: StudentItem[];
+    }>>(endpoint);
+    return res.data?.estudiantes ?? [];
+  }
+
   async getStudentSelfSummary(): Promise<StudentSelfSummary> {
     const res = await this.request<ApiResponse<StudentSelfSummary>>("/mi/resumen");
     return (
@@ -313,6 +331,49 @@ class ApiClient {
         detalle: [],
         promedio_general: null,
         resumen: { aprobados: 0, desaprobados: 0, pendientes: 0 }
+      }
+    );
+  }
+
+  async getAcademicMatriculas(params: { id_estudiante: number; id_periodo: number }): Promise<StudentMatricula[]> {
+    const query = new URLSearchParams();
+    query.append("id_periodo", String(params.id_periodo));
+    const endpoint = `/academico/${params.id_estudiante}/matriculas?${query.toString()}`;
+    const res = await this.request<ApiResponse<StudentMatricula[]>>(endpoint);
+    return res.data ?? [];
+  }
+
+  async getAcademicAsistencias(params: { id_estudiante: number; id_periodo: number }): Promise<StudentAttendanceSummary[]> {
+    const query = new URLSearchParams();
+    query.append("id_periodo", String(params.id_periodo));
+    const endpoint = `/academico/${params.id_estudiante}/asistencias?${query.toString()}`;
+    const res = await this.request<ApiResponse<StudentAttendanceSummary[]>>(endpoint);
+    return res.data ?? [];
+  }
+
+  async getAcademicGrades(params: { id_estudiante: number; id_periodo: number }): Promise<AcademicGradesResponse> {
+    const query = new URLSearchParams();
+    query.append("id_periodo", String(params.id_periodo));
+    const endpoint = `/academico/${params.id_estudiante}/calificaciones?${query.toString()}`;
+    const res = await this.request<ApiResponse<AcademicGradesResponse>>(endpoint);
+    return (
+      res.data ?? {
+        detalle: [],
+        promedio_general: null
+      }
+    );
+  }
+
+  async predictDropout(payload: DropoutPredictionRequest): Promise<DropoutPredictionResult> {
+    const res = await this.request<ApiResponse<DropoutPredictionResult>>("/modelo/modelo-desercion", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+    return (
+      res.data ?? {
+        prediccion: 0,
+        probabilidad: 0,
+        nivel: "DESCONOCIDO"
       }
     );
   }

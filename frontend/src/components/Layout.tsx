@@ -22,12 +22,14 @@ const NAV_BY_VARIANT: Record<DashboardVariant, NavItem[]> = {
   admin: [
     { to: "/", label: "Resumen de riesgo", end: true },
     { to: "/estudiantes", label: "Estudiantes" },
+    { to: "/modelo", label: "Modelo de deserci\u00f3n" },
     { to: "/tutorias", label: "Tutor\u00edas" },
     { to: "/asignaciones", label: "Asignaciones" }
   ],
   tutor: [
     { to: "/", label: "Panel del tutor", end: true },
     { to: "/estudiantes", label: "Estudiantes asignados" },
+    { to: "/modelo", label: "Modelo de deserci\u00f3n" },
     { to: "/tutorias", label: "Tutor\u00edas" }
   ],
   student: [

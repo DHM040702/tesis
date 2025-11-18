@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { DashboardPage } from "./pages/DashboardPage";
+import { DropoutDashboardPage } from "./pages/DropoutDashboardPage";
 import { LoginPage } from "./pages/LoginPage";
 import { StudentsPage } from "./pages/StudentsPage";
 import { TutoriasPage } from "./pages/TutoriasPage";
@@ -31,6 +32,7 @@ export default function App() {
         <Route path="estudiantes" element={<StudentsPage />} />
         <Route path="tutorias" element={<TutoriasPage />} />
         <Route path="asignaciones" element={<TutorAssignmentsPage />} />
+        <Route path="modelo" element={<DropoutDashboardPage />} />
       </Route>
       <Route path="*" element={<Navigate to={isAuthenticated ? "/" : "/login"} replace />} />
     </Routes>

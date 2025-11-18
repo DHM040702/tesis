@@ -28,6 +28,7 @@ class TokenOut(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
+    user: dict | None = None
 
 class RefreshIn(BaseModel):
     refresh_token: str
@@ -40,13 +41,22 @@ class LogoutIn(BaseModel):
 # Helpers SQL
 # ==========================
 SQL_USER_BY_EMAIL = text("""
-    SELECT u.id_usuario, u.contrasenia_hash, u.correo,
+    SELECT u.id_usuario,
+           u.contrasenia_hash,
+           u.correo,
+           eu.nombre AS estado,
+           p.dni,
+           p.apellido_paterno,
+           p.apellido_materno,
+           p.nombres,
            COALESCE(GROUP_CONCAT(r.nombre), '') AS roles
     FROM usuarios u
-    LEFT JOIN usuarios_roles ur ON ur.id_usuario=u.id_usuario
-    LEFT JOIN roles r ON r.id_rol=ur.id_rol
-    WHERE u.correo=:c
-    GROUP BY u.id_usuario
+    LEFT JOIN estados_usuario eu ON eu.id_estado_usuario = u.id_estado_usuario
+    LEFT JOIN usuarios_roles ur ON ur.id_usuario = u.id_usuario
+    LEFT JOIN roles r ON r.id_rol = ur.id_rol
+    LEFT JOIN personas p ON p.id_persona = u.id_persona
+    WHERE u.correo = :c
+    GROUP BY u.id_usuario, eu.nombre, p.dni, p.apellido_paterno, p.apellido_materno, p.nombres
     LIMIT 1
 """)
 
@@ -108,7 +118,20 @@ async def login(payload: LoginIn, request: Request, db: AsyncSession = Depends(g
     })
     await db.commit()
 
-    return TokenOut(access_token=access, refresh_token=refresh)
+    user_payload = {
+        "id_usuario": uid,
+        "correo": row.correo,
+        "estado": row.estado,
+        "roles": roles,
+        "persona": {
+            "dni": row.dni,
+            "apellido_paterno": row.apellido_paterno,
+            "apellido_materno": row.apellido_materno,
+            "nombres": row.nombres,
+        },
+    }
+
+    return TokenOut(access_token=access, refresh_token=refresh, user=user_payload)
 
 
 # ==========================
@@ -144,12 +167,20 @@ async def refresh_token(payload: RefreshIn, request: Request, db: AsyncSession =
 
     # obtener email y roles para el nuevo access
     uinfo = (await db.execute(text("""
-        SELECT u.correo, COALESCE(GROUP_CONCAT(r.nombre), '') AS roles
+        SELECT u.correo,
+               eu.nombre AS estado,
+               p.dni,
+               p.apellido_paterno,
+               p.apellido_materno,
+               p.nombres,
+               COALESCE(GROUP_CONCAT(r.nombre), '') AS roles
         FROM usuarios u
-        LEFT JOIN usuarios_roles ur ON ur.id_usuario=u.id_usuario
-        LEFT JOIN roles r ON r.id_rol=ur.id_rol
-        WHERE u.id_usuario=:uid
-        GROUP BY u.id_usuario
+        LEFT JOIN estados_usuario eu ON eu.id_estado_usuario = u.id_estado_usuario
+        LEFT JOIN usuarios_roles ur ON ur.id_usuario = u.id_usuario
+        LEFT JOIN roles r ON r.id_rol = ur.id_rol
+        LEFT JOIN personas p ON p.id_persona = u.id_persona
+        WHERE u.id_usuario = :uid
+        GROUP BY u.id_usuario, eu.nombre, p.dni, p.apellido_paterno, p.apellido_materno, p.nombres
         """), {"uid": uid})).fetchone()
     if not uinfo:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
@@ -169,7 +200,20 @@ async def refresh_token(payload: RefreshIn, request: Request, db: AsyncSession =
     })
     await db.commit()
 
-    return TokenOut(access_token=new_access, refresh_token=new_refresh)
+    user_payload = {
+        "id_usuario": uid,
+        "correo": email,
+        "estado": uinfo.estado,
+        "roles": roles,
+        "persona": {
+            "dni": uinfo.dni,
+            "apellido_paterno": uinfo.apellido_paterno,
+            "apellido_materno": uinfo.apellido_materno,
+            "nombres": uinfo.nombres,
+        },
+    }
+
+    return TokenOut(access_token=new_access, refresh_token=new_refresh, user=user_payload)
 
 
 # ==========================
