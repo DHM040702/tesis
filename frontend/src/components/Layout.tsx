@@ -22,34 +22,34 @@ const NAV_BY_VARIANT: Record<DashboardVariant, NavItem[]> = {
   admin: [
     { to: "/", label: "Resumen de riesgo", end: true },
     { to: "/estudiantes", label: "Estudiantes" },
-    { to: "/modelo", label: "Modelo de deserci\u00f3n" },
-    { to: "/tutorias", label: "Tutor\u00edas" },
+    { to: "/modelo", label: "Modelo de deserción" },
+    { to: "/tutorias", label: "Tutorías" },
     { to: "/asignaciones", label: "Asignaciones" }
   ],
   tutor: [
     { to: "/", label: "Panel del tutor", end: true },
     { to: "/estudiantes", label: "Estudiantes asignados" },
-    { to: "/modelo", label: "Modelo de deserci\u00f3n" },
-    { to: "/tutorias", label: "Tutor\u00edas" }
+    { to: "/modelo", label: "Modelo de deserción" },
+    { to: "/tutorias", label: "Tutorías" }
   ],
   student: [
     { to: "/", label: "Mi resumen", end: true },
-    { to: "/tutorias", label: "Mis tutor\u00edas" }
+    { to: "/tutorias", label: "Mis tutorías" }
   ]
 };
 
 const TOPBAR_ACTIONS: Record<DashboardVariant, TopbarAction[]> = {
   admin: [
     { label: "Descargar reporte", variant: "ghost" },
-    { label: "Registrar tutor\u00eda", variant: "primary", to: "/tutorias" }
+    { label: "Registrar tutoría", variant: "primary", to: "/tutorias" }
   ],
   tutor: [
     { label: "Ver estudiantes", variant: "ghost", to: "/estudiantes" },
-    { label: "Registrar tutor\u00eda", variant: "primary", to: "/tutorias" }
+    { label: "Registrar tutoría", variant: "primary", to: "/tutorias" }
   ],
   student: [
-    { label: "Ver tutor\u00edas", variant: "primary", to: "/tutorias" },
-    { label: "Contactar soporte", variant: "ghost", href: "mailto:soporte@unasam.edu.pe" }
+    { label: "Ver tutorís", variant: "primary", to: "/tutorias" },
+    { label: "Contactar soporte", variant: "ghost", href: "mailto:shuamanm@unasam.edu.pe" }
   ]
 };
 
@@ -102,7 +102,7 @@ export function Layout() {
   const identityLabel = user?.persona?.dni ?? user?.correo ?? welcomeName;
   const navItems = NAV_BY_VARIANT[variant];
   const topbarActions = TOPBAR_ACTIONS[variant].map((action) =>
-    action.label === "Cierre de sesi\u00f3n" ? { ...action, onClick: handleLogout } : action
+    action.label === "Cierre de sesión" ? { ...action, onClick: handleLogout } : action
   );
   const topbarEyebrow = EYEBROW_BY_VARIANT[variant];
   const topbarTitle = variant === "student" ? `Hola, ${firstName}` : identityLabel;
@@ -165,11 +165,11 @@ export function Layout() {
         <div className="sidebar__header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <Link to="/" className="sidebar__brand" onClick={handleNavClick}>
             <span className="sidebar__brand-mark">SIA</span>
-            <span className="sidebar__brand-text">Sistema Integral de Acompa\u00f1amiento</span>
+            <span className="sidebar__brand-text">Sistema Integral de Acompañamiento</span>
           </Link>
           {isMobile && (
-            <button type="button" className="sidebar__close" onClick={closeSidebar} aria-label="Cerrar men\u00fa lateral">
-              �o
+            <button type="button" className="sidebar__close" onClick={closeSidebar} aria-label="Cerrar menú lateral">
+              asdasd
             </button>
           )}
         </div>
@@ -195,7 +195,7 @@ export function Layout() {
             <span className="sidebar__profile-roles">Roles: {user?.roles?.join(", ")}</span>
           </div>
           <button type="button" onClick={handleLogout} className="button button--ghost">
-            Cerrar sesi\u00f3n
+            Cerrar sesión
           </button>
         </div>
       </aside>
@@ -203,8 +203,8 @@ export function Layout() {
       <main className="app-content" style={{ flex: 1, marginLeft: isMobile ? 0 : SIDEBAR_WIDTH }}>
         <header className="app-topbar">
           <div className="app-topbar__meta">
-            <button type="button" className="app-topbar__menu" onClick={toggleSidebar} aria-label={"Abrir men\u00fa"}>
-              �~�
+            <button type="button" className="app-topbar__menu" onClick={toggleSidebar} aria-label={"Abrir menú"}>
+              asdasd
             </button>
             <p className="app-topbar__eyebrow">{topbarEyebrow}</p>
             <h1 className="app-topbar__title">{topbarTitle}</h1>

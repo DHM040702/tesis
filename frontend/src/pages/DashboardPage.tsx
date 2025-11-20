@@ -167,6 +167,7 @@ function AdminDashboard() {
 
   return (
     <div className="page">
+      <br />
       <header className="page__header">
         <h1 className="page__title">Resumen de riesgo estudiantil</h1>
         <p className="page__subtitle">Visualice los puntajes de riesgo generados por el modelo predictivo.</p>
@@ -201,7 +202,7 @@ function AdminDashboard() {
       <section className="surface filters-panel">
         <div className="filters-panel__column">
           <label className="field">
-            <span className="field__label">Periodo acadÃ©mico</span>
+            <span className="field__label">Periodo académico</span>
             <select
               value={filters.periodo ?? ""}
               onChange={(e) => setFilters((prev) => ({ ...prev, periodo: Number(e.target.value) }))}
@@ -220,7 +221,7 @@ function AdminDashboard() {
         </div>
         <div className="filters-panel__column">
           <label className="field">
-            <span className="field__label">Programa acadÃ©mico</span>
+            <span className="field__label">Programa académico</span>
             <select
               value={filters.programa ?? ""}
               onChange={(e) =>
@@ -422,7 +423,7 @@ function TutorDashboard() {
           </div>
           <div className="hero-card__actions">
             <Link to="/tutorias" className="button button--primary">
-              Registrar tutor\u00eda
+              Registrar tutoría
             </Link>
             <Link to="/estudiantes" className="button button--ghost">
               Ver estudiantes
