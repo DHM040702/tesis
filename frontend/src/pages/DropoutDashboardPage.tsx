@@ -51,21 +51,25 @@ export function DropoutDashboardPage() {
 
   const studentOptions = useMemo(() => {
     const base = searchResult ?? [];
-    if (!normalizedTerm) {
-      return base;
-    }
-    const normalizedLower = normalizedTerm.toLowerCase();
+    // Si no hay resultados desde la API, no hay nada que hacer
+    if (!base.length) return [];
+
+    const normalizedLower = normalizedTerm.toLowerCase().trim();
+
+    // Si por alguna razón la API buscó por otros campos y no quieres filtrar más:
+    if (!normalizedLower) return base;
+
+    // Si quieres refinar los resultados:
     return base.filter((student) => {
-      const dni = (student.dni ?? "").toLowerCase();
-      const code = (student.codigo_alumno ?? "").toLowerCase();
-      if (code.includes(normalizedLower)) {
-        return true;
-      }
-      if (dni.includes(normalizedLower)) {
-        return true;
-      }
+      const dni = (student.dni || "").toLowerCase();
+      const code = (student.codigo_alumno || "").toLowerCase();
       const fullName = formatStudentName(student).toLowerCase();
-      return fullName.includes(normalizedLower);
+      
+      return (
+        code.includes(normalizedLower) ||
+        dni.includes(normalizedLower) ||
+        fullName.includes(normalizedLower)
+      );
     });
   }, [normalizedTerm, searchResult]);
   const canPredictWithStudent = Boolean(selectedStudent && selectedPeriod);

@@ -302,11 +302,21 @@ class ApiClient {
     if (params.max_alumnos) {
       query.append("max_alumnos", String(params.max_alumnos));
     }
+
     const endpoint = `/estudiantes/?${query.toString()}`;
-    const res = await this.request<ApiResponse<{
-      estudiantes?: StudentItem[];
-    }>>(endpoint);
-    return res.data?.estudiantes ?? [];
+
+    // 👀 Tu request devuelve el envelope completo: { ok, data }
+    const res = await this.request<{
+      ok: boolean;
+      data: {
+        items: StudentItem[];
+        total: number;
+        page_size: number;
+      };
+    }>(endpoint);
+
+    // 👈 CAMBIO CRÍTICO: usar `items` en lugar de `estudiantes`
+    return res.data?.items ?? [];
   }
 
   async getStudentSelfSummary(): Promise<StudentSelfSummary> {

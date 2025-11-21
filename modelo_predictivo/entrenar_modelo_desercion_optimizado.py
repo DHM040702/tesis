@@ -5,9 +5,13 @@ import numpy as np
 
 from sklearn.model_selection import train_test_split, RandomizedSearchCV
 from sklearn.metrics import confusion_matrix, classification_report, roc_auc_score
-from xgboost import XGBClassifier
+from xgboost import XGBClassifier, plot_importance
 import joblib
 import matplotlib.pyplot as plt
+
+import seaborn as sns
+from sklearn.metrics import roc_curve, auc, precision_recall_curve
+
 
 # -------------------------------------------------------
 # 1. Cargar datos desde MySQL
@@ -205,9 +209,63 @@ plt.show()
 for feat, imp in sorted(zip(features, importances), key=lambda x: -x[1]):
     print(f"{feat}: {imp:.4f}")
 
+
+# -------------------------------------------------------
+# Generar gráficos
+# -------------------------------------------------------
+
+# Matriz de confusión
+
+cm = confusion_matrix(y_test, y_pred)
+
+plt.figure(figsize=(6,4))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+plt.xlabel("Predicción")
+plt.ylabel("Valor real")
+plt.title("Matriz de Confusión")
+plt.show()
+
+# Curva ROC
+
+y_proba = best_model.predict_proba(X_test)[:,1]
+
+fpr, tpr, thresholds = roc_curve(y_test, y_proba)
+roc_auc = auc(fpr, tpr)
+
+plt.figure()
+plt.plot(fpr, tpr, label=f'AUC = {roc_auc:.2f}')
+plt.plot([0, 1], [0, 1], 'k--')
+plt.xlabel("False Positive Rate")
+plt.ylabel("True Positive Rate")
+plt.title("Curva ROC")
+plt.legend()
+plt.show()
+
+# Curva Precision–Recall
+
+precision, recall, thresholds = precision_recall_curve(y_test, y_proba)
+
+plt.figure(figsize=(6,4))
+plt.plot(recall, precision)
+plt.xlabel("Recall")
+plt.ylabel("Precision")
+plt.title("Curva Precision–Recall")
+plt.show()
+
+# Importancia de variables (Feature Importance)
+
+plt.figure(figsize=(7,5))
+plot_importance(best_model)
+plt.title("Importancia de Variables")
+plt.show()
+
+plt.hist(df['promedio'], bins=20)
+plt.title("Distribución del promedio")
+plt.show()
+
 # -------------------------------------------------------
 # 9. Guardar modelo
 # -------------------------------------------------------
 
-joblib.dump(best_model, "modelo_desercion_optimizado.pkl")
-print("\n✔ Modelo guardado como modelo_desercion_optimizado.pkl")
+# joblib.dump(best_model, "modelo_desercion_optimizado.pkl")
+#print("\n✔ Modelo guardado como modelo_desercion_optimizado.pkl")
