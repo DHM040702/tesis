@@ -6,6 +6,9 @@
 # next.js
  /.next/
 /out/
+/.vscode/
+*.bat
+*.zip
 
 # production
 /build

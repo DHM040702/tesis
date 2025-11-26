@@ -174,7 +174,7 @@ async def detalle_por_codigo(
       FROM estudiantes e
       LEFT JOIN personas p ON p.id_persona = e.id_persona
       LEFT JOIN programas prog ON prog.id_programa = e.id_programa
-      WHERE e.codigo_alumno LIKE :cod
+      WHERE e.codigo_alumno LIKE :cod OR p.dni LIKE :cod OR p.apellido_paterno LIKE :cod
       ORDER BY e.codigo_alumno
       LIMIT :limit
     """)

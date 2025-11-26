@@ -303,20 +303,20 @@ class ApiClient {
       query.append("max_alumnos", String(params.max_alumnos));
     }
 
-    const endpoint = `/estudiantes/?${query.toString()}`;
+    const endpoint = `/estudiantes/codigo/?${query.toString()}`;
 
     // 👀 Tu request devuelve el envelope completo: { ok, data }
     const res = await this.request<{
       ok: boolean;
       data: {
-        items: StudentItem[];
+        estudiantes: StudentItem[];
         total: number;
         page_size: number;
       };
     }>(endpoint);
 
     // 👈 CAMBIO CRÍTICO: usar `items` en lugar de `estudiantes`
-    return res.data?.items ?? [];
+    return res.data?.estudiantes ?? [];
   }
 
   async getStudentSelfSummary(): Promise<StudentSelfSummary> {
@@ -366,12 +366,14 @@ class ApiClient {
     query.append("id_periodo", String(params.id_periodo));
     const endpoint = `/academico/${params.id_estudiante}/calificaciones?${query.toString()}`;
     const res = await this.request<ApiResponse<AcademicGradesResponse>>(endpoint);
-    return (
-      res.data ?? {
-        detalle: [],
-        promedio_general: null
-      }
-    );
+    return res.data ?? []; 
+    //(
+      
+      // {
+      //   detalle: [],
+      //   promedio_general: null
+      // }
+    //);
   }
 
   async predictDropout(payload: DropoutPredictionRequest): Promise<DropoutPredictionResult> {

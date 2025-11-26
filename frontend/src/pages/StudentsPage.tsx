@@ -47,14 +47,15 @@ export function StudentsPage() {
 
   return (
     <div className="page">
+      <br />
       <header className="page__header">
         <h1 className="page__title">Listado de estudiantes</h1>
-        <p className="page__subtitle">Filtre por programa, periodo o nivel de riesgo para priorizar la atenci├│n.</p>
+        <p className="page__subtitle">Filtre por programa, periodo o nivel de riesgo para priorizar la atención.</p>
       </header>
 
       <section className="surface filters-panel">
         <FiltroSelect
-          label="Programa acad├®mico"
+          label="Programa académico"
           value={filters.programa ?? ""}
           onChange={(value) => {
             setFilters((prev) => ({ ...prev, programa: value ? Number(value) : undefined }));
@@ -93,7 +94,7 @@ export function StudentsPage() {
       </section>
 
       <section className="summary-grid">
-        <ResumenCard titulo="Total" cantidad={totales.total} />
+        
         <ResumenCard titulo="Riesgo alto" cantidad={totales.alto} colorFondo="rgba(239, 68, 68, 0.08)" colorTexto="#b91c1c" />
         <ResumenCard titulo="Riesgo medio" cantidad={totales.medio} colorFondo="rgba(249, 115, 22, 0.08)" colorTexto="#c2410c" />
         <ResumenCard titulo="Riesgo bajo" cantidad={totales.bajo} colorFondo="rgba(34, 197, 94, 0.1)" colorTexto="#15803d" />
@@ -103,14 +104,14 @@ export function StudentsPage() {
         <header className="section-header">
           <div>
             <h2 className="section-header__title">Resultados</h2>
-            {isFetching && <span className="section-header__meta">Actualizando informaci├│n...</span>}
+            {isFetching && <span className="section-header__meta">Actualizando información...</span>}
           </div>
         </header>
         <div className="table-scroll">
           <table className="table table--lg table--responsive">
             <thead>
               <tr>
-                <th>C├│digo</th>
+                <th>Código</th>
                 <th>Documento</th>
                 <th>Estudiante</th>
                 <th>Programa</th>
@@ -180,7 +181,7 @@ function PaginationControls({
       </div>
       <div className="table-pagination__actions">
         <label className="field table-pagination__page-size">
-          <span className="field__label">Registros por p├ígina</span>
+          <span className="field__label">Registros por páígina</span>
           <select
             className="field__control"
             value={pageSize}
@@ -203,7 +204,7 @@ function PaginationControls({
             Anterior
           </button>
           <span className="table-pagination__page-indicator">
-            P├ígina {Math.min(page, totalPages)} de {totalPages}
+            Páígina {Math.min(page, totalPages)} de {totalPages}
           </span>
           <button
             type="button"
