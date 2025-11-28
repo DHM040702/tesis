@@ -76,21 +76,18 @@ async def asistencias_estudiante(
     Calcula a partir de la tabla de detalle `asistencias` (presente/falta por sesión).
     """
     q = text("""
-        SELECT
+        SELECT 
             c.nombre AS curso,
-            SUM(CASE WHEN a.presente = 1 THEN 1 ELSE 0 END) AS asistencias,
-            SUM(CASE WHEN a.presente = 0 THEN 1 ELSE 0 END) AS faltas,
-            COUNT(*) AS total_sesiones,
-            ROUND(
-                (SUM(CASE WHEN a.presente = 1 THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0)) * 100
-            , 2) AS porcentaje_asistencia
-        FROM asistencias a
-        JOIN matriculas m ON m.id_matricula = a.id_matricula
-        JOIN cursos c     ON c.id_curso = m.id_curso
-        WHERE m.id_estudiante = :est
-          AND m.id_periodo    = :per
+            apc.id_periodo,
+            apc.asistencia_pct AS porcentaje_asistencia
+        FROM
+            asistencias_periodo_curso apc
+        JOIN
+            cursos c ON c.id_curso = apc.id_curso
+        WHERE apc.id_estudiante = :est
+            AND apc.id_periodo    = :per
         GROUP BY c.id_curso, c.nombre
-        ORDER BY c.nombre ASC
+        ORDER BY c.nombre ASC;
     """)
     res = await db.execute(q, {"est": id_estudiante, "per": id_periodo})
     rows = res.mappings().all()
@@ -104,51 +101,57 @@ async def asistencias_estudiante(
 # ============================================================
 # CALIFICACIONES — notas finales y promedio
 # ============================================================
-@router.get(
-    "/{id_estudiante}/calificaciones",
-    response_model=ApiResponse,
-    dependencies=[Depends(require_roles("admin", "autoridad", "tutor"))],
-)
+@router.get("/academico/{id_estudiante}/calificaciones")
 async def calificaciones_estudiante(
     id_estudiante: int,
-    id_periodo: int = Query(..., ge=1, description="ID del periodo académico"),
+    id_periodo: int,
     db: AsyncSession = Depends(get_session),
 ):
-    """
-    Devuelve las calificaciones del estudiante en cada curso del periodo.
-    Usa calificaciones.id_matricula -> matriculas -> cursos. Calcula promedio general.
-    """
-    q = text("""
+    query = text("""
         SELECT
-            c.nombre AS curso,
-            c.creditos,
-            cal.nota_final,
-            CASE
-                WHEN cal.nota_final >= 11 THEN 'Aprobado'
-                WHEN cal.nota_final IS NULL THEN 'Pendiente'
-                ELSE 'Desaprobado'
-            END AS estado
+            c.nombre        AS curso,
+            c.creditos      AS creditos,
+            cal.nota_final  AS nota_final
         FROM calificaciones cal
         JOIN matriculas m ON m.id_matricula = cal.id_matricula
-        JOIN cursos c ON c.id_curso = m.id_curso
-        WHERE m.id_estudiante = :est AND m.id_periodo = :per
-        ORDER BY c.nombre ASC
+        JOIN cursos c     ON c.id_curso = m.id_curso
+        WHERE m.id_estudiante = :id_estudiante
+          AND m.id_periodo    = :id_periodo
     """)
-    res = await db.execute(q, {"est": id_estudiante, "per": id_periodo})
-    rows = res.mappings().all()
 
-    if not rows:
-        raise HTTPException(
-            status_code=404, detail="No se encontraron calificaciones para este periodo"
+    # 🔹 AQUÍ EL CAMBIO IMPORTANTE
+    result = await db.execute(
+        query,
+        {"id_estudiante": id_estudiante, "id_periodo": id_periodo},
+    )
+    rows = result.mappings().all()
+
+    detalle = [
+        {
+            "curso": r["curso"],
+            "creditos": r["creditos"],
+            "nota_final": r["nota_final"],
+        }
+        for r in rows
+    ]
+
+    notas_validas = [
+        r for r in rows
+        if r["nota_final"] is not None and r["creditos"] is not None
+    ]
+
+    if notas_validas:
+        suma_ponderada = sum(
+            float(r["nota_final"]) * float(r["creditos"])
+            for r in notas_validas
         )
-
-    notas_validas = [r["nota_final"] for r in rows if r["nota_final"] is not None]
-    promedio = round(sum(notas_validas) / len(notas_validas), 2) if notas_validas else None
+        suma_creditos = sum(float(r["creditos"]) for r in notas_validas)
+        promedio = round(suma_ponderada / suma_creditos, 2) if suma_creditos > 0 else None
+    else:
+        promedio = None
 
     return {
-        "ok": True,
-        "data": {
-            "detalle": [dict(r) for r in rows],
-            "promedio_general": promedio,
-        },
+        "detalle": detalle,
+        "promedio_general": promedio,
     }
+

@@ -1,9 +1,20 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "../api/client";
-import { DropoutPredictionRequest, DropoutPredictionResult, StudentAttendanceSummary, StudentItem } from "../types";
+
+import {
+  AcademicAttendanceResponse,
+  DropoutPredictionRequest,
+  DropoutPredictionResult,
+  StudentItem
+} from "../types";
+
+/* --------------------------------------------------------
+   CONFIGURACIÓN
+-------------------------------------------------------- */
 
 const MIN_SEARCH_LENGTH = 3;
+
 const DEFAULT_MANUAL_VALUES: DropoutPredictionRequest = {
   promedio: 12,
   asistencia: 80,
@@ -11,36 +22,40 @@ const DEFAULT_MANUAL_VALUES: DropoutPredictionRequest = {
   cursos_desaprobados: 0
 };
 
+/* --------------------------------------------------------
+   COMPONENTE PRINCIPAL
+-------------------------------------------------------- */
+
 export function DropoutDashboardPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedTerm = useDebouncedValue(searchTerm, 400);
   const normalizedTerm = debouncedTerm.trim();
+
   const [selectedStudent, setSelectedStudent] = useState<StudentItem | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<string>("");
 
-  const [studentFeatures, setStudentFeatures] = useState<DropoutPredictionRequest | null>(null);
-  const [studentPrediction, setStudentPrediction] = useState<DropoutPredictionResult | null>(null);
+  const [studentFeatures, setStudentFeatures] =
+    useState<DropoutPredictionRequest | null>(null);
+  const [studentPrediction, setStudentPrediction] =
+    useState<DropoutPredictionResult | null>(null);
+
   const [studentLoading, setStudentLoading] = useState(false);
   const [studentError, setStudentError] = useState<string | null>(null);
 
-  const [manualValues, setManualValues] = useState<DropoutPredictionRequest>(DEFAULT_MANUAL_VALUES);
-  const [manualPrediction, setManualPrediction] = useState<DropoutPredictionResult | null>(null);
+  // Manual mode
+  const [manualValues, setManualValues] =
+    useState<DropoutPredictionRequest>(DEFAULT_MANUAL_VALUES);
+  const [manualPrediction, setManualPrediction] =
+    useState<DropoutPredictionResult | null>(null);
   const [manualLoading, setManualLoading] = useState(false);
   const [manualError, setManualError] = useState<string | null>(null);
 
+  /* --------------------------------------------------------
+     CARGA DE PERIODOS
+  -------------------------------------------------------- */
   const { data: periodos } = useQuery({
     queryKey: ["periodos"],
     queryFn: () => apiClient.getPeriodos()
-  });
-
-  const { data: searchResult, isFetching: isSearching } = useQuery({
-    queryKey: ["student-search-code", normalizedTerm],
-    enabled: normalizedTerm.length >= MIN_SEARCH_LENGTH,
-    queryFn: () =>
-      apiClient.searchStudentsByCode({
-        codigo: normalizedTerm,
-        max_alumnos: 10
-      })
   });
 
   useEffect(() => {
@@ -49,72 +64,118 @@ export function DropoutDashboardPage() {
     }
   }, [periodos, selectedPeriod]);
 
+  /* --------------------------------------------------------
+     BÚSQUEDA DE ESTUDIANTE
+  -------------------------------------------------------- */
+  const { data: searchResult, isFetching: isSearching } = useQuery({
+    queryKey: ["student-search", normalizedTerm],
+    enabled: normalizedTerm.length >= MIN_SEARCH_LENGTH,
+    queryFn: () =>
+      apiClient.searchStudentsByCode({
+        codigo: normalizedTerm,
+        max_alumnos: 10
+      })
+  });
+
   const studentOptions = useMemo(() => {
     const base = searchResult ?? [];
-    // Si no hay resultados desde la API, no hay nada que hacer
     if (!base.length) return [];
 
-    const normalizedLower = normalizedTerm.toLowerCase().trim();
-
-    // Si por alguna razón la API buscó por otros campos y no quieres filtrar más:
-    if (!normalizedLower) return base;
-
-    // Si quieres refinar los resultados:
-    return base.filter((student) => {
-      const dni = (student.dni || "").toLowerCase();
-      const code = (student.codigo_alumno || "").toLowerCase();
-      const fullName = formatStudentName(student).toLowerCase();
-      
+    const n = normalizedTerm.toLowerCase();
+    return base.filter((s) => {
+      const fullName = formatStudentName(s).toLowerCase();
       return (
-        code.includes(normalizedLower) ||
-        dni.includes(normalizedLower) ||
-        fullName.includes(normalizedLower)
+        (s.codigo_alumno ?? "").toLowerCase().includes(n) ||
+        (s.dni ?? "").toLowerCase().includes(n) ||
+        fullName.includes(n)
       );
     });
   }, [normalizedTerm, searchResult]);
-  const canPredictWithStudent = Boolean(selectedStudent && selectedPeriod);
-  const selectedStudentLabel = useMemo(() => (selectedStudent ? formatStudentName(selectedStudent) : "Sin selección"), [selectedStudent]);
 
+  const canPredictWithStudent = Boolean(selectedStudent && selectedPeriod);
+  const selectedStudentLabel = selectedStudent
+    ? formatStudentName(selectedStudent)
+    : "Sin selección";
+
+  /* --------------------------------------------------------
+     EJECUTAR PREDICCIÓN CON DATOS INSTITUCIONALES
+  -------------------------------------------------------- */
   const handleRunStudentPrediction = async () => {
     if (!selectedStudent || !selectedPeriod) {
       setStudentError("Seleccione un estudiante y un periodo académico.");
       return;
     }
+
     setStudentLoading(true);
     setStudentError(null);
+
     try {
       const periodId = Number(selectedPeriod);
+
       const [grades, attendance, matriculas] = await Promise.all([
-        apiClient.getAcademicGrades({ id_estudiante: selectedStudent.id_estudiante, id_periodo: periodId }),
-        apiClient.getAcademicAsistencias({ id_estudiante: selectedStudent.id_estudiante, id_periodo: periodId }).catch(() => []),
-        apiClient.getAcademicMatriculas({ id_estudiante: selectedStudent.id_estudiante, id_periodo: periodId }).catch(() => [])
+        apiClient.getAcademicGrades({
+          id_estudiante: selectedStudent.id_estudiante,
+          id_periodo: periodId
+        }),
+
+        apiClient.getAcademicAsistencias({
+          id_estudiante: selectedStudent.id_estudiante,
+          id_periodo: periodId
+        }),
+
+        apiClient.getAcademicMatriculas({
+          id_estudiante: selectedStudent.id_estudiante,
+          id_periodo: periodId
+        })
       ]);
 
-      const promedio = typeof grades.promedio_general === "number" ? grades.promedio_general : 0;
-      const cursosMatriculados = Math.max(grades.detalle.length, matriculas.length);
+      const promedio =
+        typeof grades.promedio_general === "number"
+          ? grades.promedio_general
+          : 0;
+
+      const cursosMatriculados = Math.max(
+        grades.detalle?.length ?? 0,
+        matriculas?.length ?? 0
+      );
+
       const cursosDesaprobados = grades.detalle.reduce((acc, item) => {
         const estado = (item.estado ?? "").toLowerCase();
-        if (estado.includes("desaprob") || (typeof item.nota_final === "number" && item.nota_final < 11)) {
+        if (
+          estado.includes("desaprob") ||
+          (typeof item.nota_final === "number" && item.nota_final < 11)
+        ) {
           return acc + 1;
         }
         return acc;
       }, 0);
-      const asistencia = computeAttendanceAverage(attendance);
-      if (cursosMatriculados === 0 && promedio === 0) {
-        throw new Error("No se encontraron registros académicos para el periodo seleccionado.");
+
+      const asistencia = computeAttendanceFromResponse(attendance);
+
+      if (!cursosMatriculados && !promedio) {
+        throw new Error(
+          "No se encontraron registros académicos para el periodo seleccionado."
+        );
       }
+
       const payload: DropoutPredictionRequest = {
         promedio: roundTo(promedio, 2),
         asistencia: roundTo(asistencia, 2),
         cursos_matriculados: cursosMatriculados || 1,
-        cursos_desaprobados: Math.min(cursosDesaprobados, cursosMatriculados || 1)
+        cursos_desaprobados: Math.min(
+          cursosDesaprobados,
+          cursosMatriculados || 1
+        )
       };
+
       const prediction = await apiClient.predictDropout(payload);
+
       setStudentFeatures(payload);
       setStudentPrediction(prediction);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "No se pudo obtener la predicción.";
-      setStudentError(message);
+    } catch (err: any) {
+      const msg =
+        err instanceof Error ? err.message : "No se pudo obtener la predicción.";
+      setStudentError(msg);
       setStudentFeatures(null);
       setStudentPrediction(null);
     } finally {
@@ -122,6 +183,9 @@ export function DropoutDashboardPage() {
     }
   };
 
+  /* --------------------------------------------------------
+     MANUAL MODE
+  -------------------------------------------------------- */
   const handleManualChange = (field: keyof DropoutPredictionRequest, value: number) => {
     setManualValues((prev) => ({ ...prev, [field]: value }));
   };
@@ -130,6 +194,7 @@ export function DropoutDashboardPage() {
     event.preventDefault();
     setManualError(null);
     setManualLoading(true);
+
     try {
       const sanitized: DropoutPredictionRequest = {
         promedio: roundTo(manualValues.promedio, 2),
@@ -140,87 +205,111 @@ export function DropoutDashboardPage() {
           Math.max(1, Math.round(manualValues.cursos_matriculados))
         )
       };
+
       const prediction = await apiClient.predictDropout(sanitized);
       setManualValues(sanitized);
       setManualPrediction(prediction);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "No se pudo obtener la predicción.";
-      setManualError(message);
+    } catch (err: any) {
+      const msg =
+        err instanceof Error ? err.message : "No se pudo obtener la predicción.";
+      setManualError(msg);
       setManualPrediction(null);
     } finally {
       setManualLoading(false);
     }
   };
 
+  /* --------------------------------------------------------
+     RENDER
+  -------------------------------------------------------- */
+
   return (
     <div className="page">
       <header className="page__header">
         <p className="page__eyebrow">Modelo predictivo</p>
         <h1 className="page__title">Predicción de deserción</h1>
-        <p className="page__subtitle">Evalúe el riesgo con datos reales del estudiante o ingrese valores manualmente para realizar simulaciones.</p>
       </header>
 
+      {/* ====================== MODO 1 ========================== */}
       <section className="surface model-section">
         <header className="section-header">
           <div>
             <p className="section-header__eyebrow">Modo 1 · Datos institucionales</p>
             <h2 className="section-header__title">Utilizar un estudiante existente</h2>
-            <p className="section-header__meta">
-              Busque al estudiante, seleccione el periodo académico y consolidaremos promedio, asistencia y desempeño para alimentar el modelo.
-            </p>
           </div>
+
           {selectedStudent && (
-            <button type="button" className="button button--ghost" onClick={() => setSelectedStudent(null)}>
+            <button
+              className="button button--ghost"
+              onClick={() => setSelectedStudent(null)}
+            >
               Limpiar selección
             </button>
           )}
         </header>
+
+        {/* Búsqueda */}
         <div className="model-form__grid">
           <label className="field">
             <span className="field__label">Buscar estudiante</span>
             <input
               type="text"
               className="field__control"
-              placeholder="Código de estudiante, DNI o nombre"
               value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Código, DNI o nombre"
             />
-            <span className="field__hint">Ingrese al menos {MIN_SEARCH_LENGTH} caracteres.</span>
+            <span className="field__hint">
+              Ingrese al menos {MIN_SEARCH_LENGTH} caracteres.
+            </span>
           </label>
+
           <label className="field">
-            <span className="field__label">Periodo académico</span>
-            <select className="field__control" value={selectedPeriod} onChange={(event) => setSelectedPeriod(event.target.value)}>
-              {periodos?.map((periodo) => (
-                <option key={periodo.id_periodo} value={periodo.id_periodo}>
-                  {periodo.nombre}
+            <span className="field__label">Periodo</span>
+            <select
+              className="field__control"
+              value={selectedPeriod}
+              onChange={(e) => setSelectedPeriod(e.target.value)}
+            >
+              {periodos?.map((p) => (
+                <option key={p.id_periodo} value={p.id_periodo}>
+                  {p.nombre}
                 </option>
               ))}
             </select>
           </label>
         </div>
 
+        {/* Resultados búsqueda */}
         <StudentSearchList
           results={studentOptions}
           isSearching={isSearching}
           minCharsReached={normalizedTerm.length >= MIN_SEARCH_LENGTH}
-          onSelect={(student) => setSelectedStudent(student)}
+          onSelect={(s) => setSelectedStudent(s)}
           selectedId={selectedStudent?.id_estudiante}
         />
 
+        {/* Resumen */}
         <div className="student-selection__summary">
           <div>
-            <p className="student-selection__label">Estudiante seleccionado</p>
-            <strong className="student-selection__value">{selectedStudentLabel}</strong>
+            <p className="student-selection__label">Estudiante</p>
+            <strong>{selectedStudentLabel}</strong>
           </div>
+
           <div>
             <p className="student-selection__label">Periodo</p>
-            <strong className="student-selection__value">
+            <strong>
               {selectedPeriod
-                ? periodos?.find((p) => String(p.id_periodo) === selectedPeriod)?.nombre ?? `ID ${selectedPeriod}`
+                ? (periodos?.find((p) => `${p.id_periodo}` === selectedPeriod)?.nombre)
                 : "Sin periodo"}
             </strong>
           </div>
-          <button type="button" className="button" onClick={handleRunStudentPrediction} disabled={!canPredictWithStudent || studentLoading}>
+
+          <button
+            className="button"
+            onClick={handleRunStudentPrediction}
+            disabled={!canPredictWithStudent || studentLoading}
+          >
             {studentLoading ? "Calculando..." : "Calcular riesgo"}
           </button>
         </div>
@@ -230,10 +319,10 @@ export function DropoutDashboardPage() {
         {studentFeatures && (
           <FeatureGrid
             features={[
-              { label: "Promedio general", value: `${studentFeatures.promedio.toFixed(2)} / 20` },
+              { label: "Promedio", value: `${studentFeatures.promedio.toFixed(2)}` },
               { label: "Asistencia", value: `${studentFeatures.asistencia.toFixed(1)}%` },
-              { label: "Cursos matriculados", value: String(studentFeatures.cursos_matriculados) },
-              { label: "Cursos desaprobados", value: String(studentFeatures.cursos_desaprobados) }
+              { label: "Cursos matriculados", value: `${studentFeatures.cursos_matriculados}` },
+              { label: "Cursos desaprobados", value: `${studentFeatures.cursos_desaprobados}` }
             ]}
           />
         )}
@@ -242,76 +331,89 @@ export function DropoutDashboardPage() {
           <PredictionResultCard
             title="Resultado con datos institucionales"
             prediction={studentPrediction}
-            helper="Basado en la información consolidada del periodo seleccionado."
+            helper="Basado en información consolidada del periodo."
           />
         )}
       </section>
 
+      {/* ====================== MODO 2 ========================== */}
       <section className="surface model-section">
         <header className="section-header">
           <div>
             <p className="section-header__eyebrow">Modo 2 · Escenario manual</p>
-            <h2 className="section-header__title">Ingresar valores manualmente</h2>
-            <p className="section-header__meta">Use este modo para pruebas rápidas o simulaciones hipotéticas.</p>
+            <h2 className="section-header__title">Ingresar valores manuales</h2>
           </div>
-          <button type="button" className="button button--ghost" onClick={() => setManualValues(DEFAULT_MANUAL_VALUES)}>
+
+          <button
+            className="button button--ghost"
+            onClick={() => setManualValues(DEFAULT_MANUAL_VALUES)}
+          >
             Restablecer valores
           </button>
         </header>
 
+        {/* Form manual */}
         <form className="model-form__grid" onSubmit={handleManualSubmit}>
           <label className="field">
-            <span className="field__label">Promedio general (0-20)</span>
+            <span className="field__label">Promedio (0–20)</span>
             <input
               type="number"
+              className="field__control"
               min={0}
               max={20}
-              step="0.1"
-              className="field__control"
+              step={0.1}
               value={manualValues.promedio}
-              onChange={(event) => handleManualChange("promedio", Number(event.target.value))}
+              onChange={(e) => handleManualChange("promedio", Number(e.target.value))}
               required
             />
           </label>
+
           <label className="field">
             <span className="field__label">Asistencia (%)</span>
             <input
               type="number"
+              className="field__control"
               min={0}
               max={100}
-              step="0.5"
-              className="field__control"
+              step={0.5}
               value={manualValues.asistencia}
-              onChange={(event) => handleManualChange("asistencia", Number(event.target.value))}
+              onChange={(e) => handleManualChange("asistencia", Number(e.target.value))}
               required
             />
           </label>
+
           <label className="field">
             <span className="field__label">Cursos matriculados</span>
             <input
               type="number"
-              min={1}
-              step="1"
               className="field__control"
+              min={1}
+              step={1}
               value={manualValues.cursos_matriculados}
-              onChange={(event) => handleManualChange("cursos_matriculados", Number(event.target.value))}
+              onChange={(e) =>
+                handleManualChange("cursos_matriculados", Number(e.target.value))
+              }
               required
             />
           </label>
+
           <label className="field">
             <span className="field__label">Cursos desaprobados</span>
             <input
               type="number"
-              min={0}
-              step="1"
               className="field__control"
+              min={0}
+              step={1}
               value={manualValues.cursos_desaprobados}
-              onChange={(event) => handleManualChange("cursos_desaprobados", Number(event.target.value))}
+              onChange={(e) =>
+                handleManualChange("cursos_desaprobados", Number(e.target.value))
+              }
               required
             />
           </label>
+
           <div className="model-form__actions">
-            <button type="submit" className="button" disabled={manualLoading}>
+            <button className="button" type="submit" disabled={manualLoading}>
               {manualLoading ? "Calculando..." : "Obtener predicción"}
             </button>
           </div>
@@ -321,15 +423,19 @@ export function DropoutDashboardPage() {
 
         {manualPrediction && (
           <PredictionResultCard
-            title="Resultado con datos manuales"
+            title="Resultado con valores manuales"
             prediction={manualPrediction}
-            helper="Recuerde validar con la historia académica del estudiante antes de tomar decisiones."
+            helper="Simulación manual."
           />
         )}
       </section>
     </div>
   );
 }
+
+/* --------------------------------------------------------
+   SUBCOMPONENTES
+-------------------------------------------------------- */
 
 function StudentSearchList({
   results,
@@ -345,35 +451,44 @@ function StudentSearchList({
   selectedId?: number;
 }) {
   if (!minCharsReached) {
-    return <p className="student-search__status">Introduzca al menos 3 caracteres para iniciar la búsqueda.</p>;
+    return (
+      <p className="student-search__status">
+        Introduzca al menos 3 caracteres.
+      </p>
+    );
   }
 
   if (isSearching) {
-    return <p className="student-search__status">Buscando coincidencias...</p>;
+    return <p className="student-search__status">Buscando...</p>;
   }
 
   if (!results.length) {
-    return <p className="student-search__status">Sin resultados. Intente con otro término o revise la ortografía.</p>;
+    return (
+      <p className="student-search__status">Sin resultados para este criterio.</p>
+    );
   }
 
   return (
     <ul className="student-search__results">
-      {results.map((student) => {
-        const isActive = selectedId === student.id_estudiante;
+      {results.map((s) => {
+        const active = selectedId === s.id_estudiante;
         return (
-          <li key={student.id_estudiante}>
+          <li key={s.id_estudiante}>
             <button
               type="button"
-              className={`student-search__option${isActive ? " is-selected" : ""}`}
-              onClick={() => onSelect(student)}
+              className={`student-search__option${active ? " is-selected" : ""}`}
+              onClick={() => onSelect(s)}
             >
               <div>
-                <strong>{formatStudentName(student)}</strong>
+                <strong>{formatStudentName(s)}</strong>
                 <p>
-                  {student.dni ?? "Sin documento"} · {student.programa ?? "Programa sin registrar"}
+                  {s.dni ?? "Sin DNI"} · {s.programa ?? "Sin programa"}
                 </p>
               </div>
-              <span className="student-search__meta">{student.codigo_alumno ?? "SN"}</span>
+
+              <span className="student-search__meta">
+                {s.codigo_alumno ?? "SN"}
+              </span>
             </button>
           </li>
         );
@@ -382,75 +497,110 @@ function StudentSearchList({
   );
 }
 
-function PredictionResultCard({ title, prediction, helper }: { title: string; prediction: DropoutPredictionResult; helper: string }) {
+function PredictionResultCard({
+  title,
+  prediction,
+  helper
+}: {
+  title: string;
+  prediction: DropoutPredictionResult;
+  helper: string;
+}) {
   return (
     <article className="prediction-card">
       <header>
-        <p className="prediction-card__eyebrow">Resultado del modelo</p>
         <h3 className="prediction-card__title">{title}</h3>
       </header>
+
       <div className="prediction-card__body">
-        <span className={`prediction-card__badge ${resolveBadgeVariant(prediction.nivel)}`}>{prediction.nivel}</span>
-        <p className="prediction-card__probability">{formatProbability(prediction.probabilidad)} de probabilidad de deserción</p>
-        <p className="prediction-card__helper">{helper}</p>
-        <p className="prediction-card__recommendation">
-          {prediction.prediccion
-            ? "Se recomienda activar un plan de acompañamiento personalizado."
-            : "Mantener seguimiento periódico y reforzar factores protectores."}
+        <span
+          className={`prediction-card__badge ${resolveBadgeVariant(
+            prediction.nivel
+          )}`}
+        >
+          {prediction.nivel}
+        </span>
+
+        <p className="prediction-card__probability">
+          {formatProbability(prediction.probabilidad)} de probabilidad
         </p>
+
+        <p className="prediction-card__helper">{helper}</p>
       </div>
     </article>
   );
 }
 
-function FeatureGrid({ features }: { features: Array<{ label: string; value: string }> }) {
+function FeatureGrid({
+  features
+}: {
+  features: Array<{ label: string; value: string }>;
+}) {
   return (
     <div className="feature-grid">
-      {features.map((feature) => (
-        <article key={feature.label} className="feature-grid__item">
-          <span className="feature-grid__label">{feature.label}</span>
-          <strong className="feature-grid__value">{feature.value}</strong>
+      {features.map((f) => (
+        <article key={f.label} className="feature-grid__item">
+          <span className="feature-grid__label">{f.label}</span>
+          <strong className="feature-grid__value">{f.value}</strong>
         </article>
       ))}
     </div>
   );
 }
 
-function formatStudentName(student: StudentItem) {
-  const lastNames = [student.apellido_paterno, student.apellido_materno].filter(Boolean).join(" ");
-  const names = student.nombres ?? "";
-  return `${lastNames}, ${names}`.replace(/^,\s*/, "").trim() || "Sin nombre";
+/* --------------------------------------------------------
+   UTILIDADES
+-------------------------------------------------------- */
+
+function computeAttendanceFromResponse(
+  attendance: AcademicAttendanceResponse | null | undefined
+): number {
+  if (!attendance) return 0;
+
+  if (typeof attendance.asistencia_global === "number") {
+    return attendance.asistencia_global;
+  }
+
+  const records = attendance.detalle ?? [];
+  if (!records.length) return 0;
+
+  const values = records
+    .map((r) =>
+      typeof r.porcentaje_asistencia === "number"
+        ? r.porcentaje_asistencia
+        : null
+    )
+    .filter((v): v is number => v !== null);
+
+  if (!values.length) return 0;
+
+  const sum = values.reduce((acc, v) => acc + v, 0);
+  return sum / values.length;
 }
 
-function formatProbability(probability: number) {
-  const pct = Math.max(0, Math.min(1, probability ?? 0)) * 100;
+function formatStudentName(s: StudentItem) {
+  const lastNames = [s.apellido_paterno, s.apellido_materno]
+    .filter(Boolean)
+    .join(" ");
+  const names = s.nombres ?? "";
+  return `${lastNames}, ${names}`.replace(/^,\s*/, "").trim();
+}
+
+function formatProbability(prob: number) {
+  const pct = Math.max(0, Math.min(1, prob ?? 0)) * 100;
   return `${pct.toFixed(1)}%`;
 }
 
 function resolveBadgeVariant(level: string) {
-  const normalized = (level ?? "").toLowerCase();
-  if (normalized.includes("alto")) return "is-danger";
-  if (normalized.includes("medio")) return "is-warning";
-  if (normalized.includes("bajo")) return "is-success";
+  const n = (level ?? "").toLowerCase();
+  if (n.includes("alto")) return "is-danger";
+  if (n.includes("medio")) return "is-warning";
+  if (n.includes("bajo")) return "is-success";
   return "";
 }
 
-function computeAttendanceAverage(records: StudentAttendanceSummary[]) {
-  if (!records?.length) {
-    return 0;
-  }
-  const values = records
-    .map((item) => (typeof item.porcentaje_asistencia === "number" ? item.porcentaje_asistencia : null))
-    .filter((value): value is number => value !== null);
-  if (!values.length) {
-    return 0;
-  }
-  const total = values.reduce((acc, value) => acc + value, 0);
-  return total / values.length;
-}
-
 function roundTo(value: number, digits = 2) {
-  const factor = 10 ** digits;
+  const factor = Math.pow(10, digits);
   return Math.round((value ?? 0) * factor) / factor;
 }
 
@@ -461,8 +611,8 @@ function clamp(value: number, min: number, max: number) {
 function useDebouncedValue<T>(value: T, delay: number) {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {
-    const handle = window.setTimeout(() => setDebounced(value), delay);
-    return () => window.clearTimeout(handle);
+    const handle = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(handle);
   }, [value, delay]);
   return debounced;
 }

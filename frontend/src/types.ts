@@ -1,7 +1,7 @@
 
 export type ApiResponse<T> = {
-  ok: boolean;
-  data: T;
+  ok?: boolean;
+  data?: T;
   message?: string;
 };
 
@@ -170,12 +170,10 @@ export type StudentMatricula = {
   fecha_matricula?: string | null;
 };
 
-export type StudentAttendanceSummary = {
+export interface StudentAttendanceSummary {
   curso: string;
-  asistencias: number | null;
-  faltas: number | null;
-  total_sesiones: number | null;
-  porcentaje_asistencia: number | null;
+  id_periodo: number;
+  porcentaje_asistencia: number;
 };
 
 export type AcademicGradesResponse = {
@@ -187,3 +185,12 @@ export type AcademicGradesResponse = {
   }>;
   promedio_general: number | null;
 };
+
+export interface AcademicAttendanceResponse {
+  detalle: Array<{
+    curso: string;
+    id_periodo: number;
+    porcentaje_asistencia: number;
+  }>;
+  asistencia_global: number | null;
+}

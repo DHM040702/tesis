@@ -1,4 +1,5 @@
 import dayjs from "dayjs";
+import axios from "axios";
 import {
   AcademicGradesResponse,
   ApiLoginResponse,
@@ -13,6 +14,7 @@ import {
   RiskLevelItem,
   RiskSummaryItem,
   StudentAttendanceSummary,
+  AcademicAttendanceResponse,
   StudentGradesResponse,
   StudentItem,
   StudentMatricula,
@@ -352,29 +354,50 @@ class ApiClient {
     const res = await this.request<ApiResponse<StudentMatricula[]>>(endpoint);
     return res.data ?? [];
   }
-
-  async getAcademicAsistencias(params: { id_estudiante: number; id_periodo: number }): Promise<StudentAttendanceSummary[]> {
+ async getAcademicAsistencias(params: {
+    id_estudiante: number;
+    id_periodo: number;
+  }): Promise<AcademicAttendanceResponse> {
     const query = new URLSearchParams();
     query.append("id_periodo", String(params.id_periodo));
     const endpoint = `/academico/${params.id_estudiante}/asistencias?${query.toString()}`;
-    const res = await this.request<ApiResponse<StudentAttendanceSummary[]>>(endpoint);
-    return res.data ?? [];
+
+    try {
+      const res = await this.request<ApiResponse<AcademicAttendanceResponse> | AcademicAttendanceResponse>(endpoint);
+
+      if ("detalle" in res) {
+        return res;
+      }
+
+      return res.data ?? { detalle: [], asistencia_global: null };
+    } catch (err: any) {
+      if (err.message?.toLowerCase().includes("no hay registros de asistencia")) {
+        return { detalle: [], asistencia_global: null };
+      }
+      throw err;
+    }
   }
 
-  async getAcademicGrades(params: { id_estudiante: number; id_periodo: number }): Promise<AcademicGradesResponse> {
+  async getAcademicGrades(params: {
+    id_estudiante: number;
+    id_periodo: number;
+  }): Promise<AcademicGradesResponse> {
     const query = new URLSearchParams();
     query.append("id_periodo", String(params.id_periodo));
     const endpoint = `/academico/${params.id_estudiante}/calificaciones?${query.toString()}`;
-    const res = await this.request<ApiResponse<AcademicGradesResponse>>(endpoint);
-    return res.data ?? []; 
-    //(
-      
-      // {
-      //   detalle: [],
-      //   promedio_general: null
-      // }
-    //);
+
+    const res = await this.request<ApiResponse<AcademicGradesResponse> | AcademicGradesResponse>(endpoint);
+
+    if ("detalle" in res) {
+      return res;
+    }
+
+    return res.data ?? {
+      detalle: [],
+      promedio_general: null
+    };
   }
+
 
   async predictDropout(payload: DropoutPredictionRequest): Promise<DropoutPredictionResult> {
     const res = await this.request<ApiResponse<DropoutPredictionResult>>("/modelo/modelo-desercion", {
